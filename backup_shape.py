@@ -7,8 +7,6 @@ Backup Shape implementation using scipy.
 
 import weakref
 
-from nngt.lib import InvalidArgument
-
 
 class Shape:
     """
@@ -43,12 +41,12 @@ class Shape:
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'.
-        parent : :class:`~nngt.Graph` or subclass
+        parent : :class:`nngt.Graph` or subclass
             The graph which is associated to this Shape.
 
         Returns
         -------
-        shape : :class:`~nngt.geometry.Shape`
+        shape : :class:`Shape`
             Rectangle shape.
         '''
         shape = cls(unit=unit, parent=parent)
@@ -84,12 +82,12 @@ class Shape:
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'.
-        parent : :class:`~nngt.Graph` or subclass
+        parent : :class:`nngt.Graph` or subclass
             The graph which is associated to this Shape.
 
         Returns
         -------
-        shape : :class:`~nngt.geometry.Shape`
+        shape : :class:`Shape`
             Rectangle shape.
         '''
         shape = cls(unit=unit, parent=parent)
@@ -126,13 +124,13 @@ class Shape:
 
     @property
     def parent(self):
-        ''' Return the parent of the :class:`~nngt.geometry.Shape`. '''
+        ''' Return the parent of the :class:`Shape`. '''
         return self._parent
 
     @property
     def unit(self):
         '''
-        Return the unit for the :class:`~nngt.geometry.Shape` coordinates.
+        Return the unit for the :class:`Shape` coordinates.
         '''
         return self._unit
 
@@ -149,11 +147,11 @@ class Shape:
 
     def add_subshape(self, subshape, position, unit='um'):
         '''
-        Add a :class:`~nngt.geometry.Shape` to the current one.
+        Add a :class:`Shape` to the current one.
 
         Parameters
         ----------
-        subshape: :class:`~nngt.geometry.Shape`
+        subshape: :class:`Shape`
             Subshape to add.
         position: tuple of doubles
             Position of the subshape's center of gravity in space.
@@ -165,7 +163,7 @@ class Shape:
     def seed_neurons(self, nodes=None):
         '''
         Return the positions of the neurons inside the
-        :class:`~nngt.geometry.Shape`.
+        :class:`Shape`.
         
         Parameters
         ----------
@@ -174,7 +172,7 @@ class Shape:
             'um', 'mm', 'cm', 'dm', 'm'.
         neurons : int, optional (default: None)
             Number of neurons to seed. This argument is considered only if the
-            :class:`~nngt.geometry.Shape` has no `parent`, otherwise, a
+            :class:`Shape` has no `parent`, otherwise, a
             position is generated for each neuron in `parent`.
         
         Returns
