@@ -16,7 +16,6 @@ import numpy as np
 from numpy.random import uniform
 
 from .geom_utils import conversion_magnitude
-from nngt.lib import InvalidArgument
 
 
 __all__ = ["Shape"]
@@ -30,8 +29,8 @@ class Shape(Polygon):
     Attributes
     ----------
     area : double
-        Area of the shape in the :class:`~nngt.geometry.Shape`'s
-        :func:`~nngt.geometry.Shape.unit` squared (:math:`\mu m^2`,
+        Area of the shape in the :class:`Shape`'s
+        :func:`Shape.unit` squared (:math:`\mu m^2`,
         :math:`mm^2`, :math:`cm^2`, :math:`dm^2` or :math:`m^2`).
     centroid : tuple of doubles
         Position of the center of mass of the current shape in `unit`.
@@ -61,8 +60,8 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'.
-        parent : :class:`~nngt.Graph` object
-            The parent which will become a :class:`~nngt.SpatialGraph`.
+        parent : :class:`nngt.Graph` object
+            The parent which will become a :class:`nngt.SpatialGraph`.
         interpolate_curve : int, optional (default: 50)
             Number of points that should be used to interpolate a curve.
         '''
@@ -94,8 +93,8 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'.
-        parent : :class:`~nngt.Graph` object
-            The parent which will become a :class:`~nngt.SpatialGraph`.
+        parent : :class:`nngt.Graph` object
+            The parent which will become a :class:`nngt.SpatialGraph`.
         interpolate_curve : int, optional (default: 50)
             Number of points that should be used to interpolate a curve.
         '''
@@ -161,12 +160,12 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'
-        parent : :class:`~nngt.Graph` or subclass, optional (default: None)
+        parent : :class:`nngt.Graph` or subclass, optional (default: None)
             The parent container.
 
         Returns
         -------
-        shape : :class:`~nngt.geometry.Shape`
+        shape : :class:`Shape`
             Rectangle shape.
         '''
         half_w = 0.5 * width
@@ -194,12 +193,12 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'
-        parent : :class:`~nngt.Graph` or subclass, optional (default: None)
+        parent : :class:`nngt.Graph` or subclass, optional (default: None)
             The parent container.
 
         Returns
         -------
-        shape : :class:`~nngt.geometry.Shape`
+        shape : :class:`Shape`
             Rectangle shape.
         '''
         centroid = np.array(centroid)
@@ -223,12 +222,12 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'
-        parent : :class:`~nngt.Graph` or subclass, optional (default: None)
+        parent : :class:`nngt.Graph` or subclass, optional (default: None)
             The parent container.
 
         Returns
         -------
-        shape : :class:`~nngt.geometry.Shape`
+        shape : :class:`Shape`
             Rectangle shape.
         '''
         centroid = np.array(centroid)
@@ -242,7 +241,7 @@ class Shape(Polygon):
 
     def __init__(self, shell, holes=None, unit='um', parent=None):
         '''
-        Initialize the :class:`~nngt.geometry.Shape` object and the underlying
+        Initialize the :class:`Shape` object and the underlying
         :class:`shapely.geometry.Polygon`.
 
         Parameters
@@ -255,7 +254,7 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'.
-        parent : :class:`~nngt.Graph` or subclass
+        parent : :class:`nngt.Graph` or subclass
             The graph which is associated to this Shape.
         '''
         self._parent = weakref.proxy(parent) if parent is not None else None
@@ -264,27 +263,27 @@ class Shape(Polygon):
 
     @property
     def parent(self):
-        ''' Return the parent of the :class:`~nngt.geometry.Shape`. '''
+        ''' Return the parent of the :class:`Shape`. '''
         return self._parent
 
     @property
     def unit(self):
         '''
-        Return the unit for the :class:`~nngt.geometry.Shape` coordinates.
+        Return the unit for the :class:`Shape` coordinates.
         '''
         return self._unit
 
     def set_parent(self, parent):
-        ''' Set the parent :class:`~nngt.Graph`. '''
+        ''' Set the parent :class:`nngt.Graph`. '''
         self._parent = weakref.proxy(parent) if parent is not None else None
 
     def add_subshape(self, subshape, position, unit='um'):
         """
-        Add a :class:`~nngt.geometry.Shape` to the current one.
+        Add a :class:`Shape` to the current one.
 
         Parameters
         ----------
-        subshape : :class:`~nngt.geometry.Shape`
+        subshape : :class:`Shape`
             Subshape to add.
         position : tuple of doubles
             Position of the subshape's center of gravity in space.
@@ -300,7 +299,7 @@ class Shape(Polygon):
     def seed_neurons(self, unit=None, neurons=None):
         '''
         Return the positions of the neurons inside the
-        :class:`~nngt.geometry.Shape`.
+        :class:`Shape`.
 
         Parameters
         ----------
@@ -309,7 +308,7 @@ class Shape(Polygon):
             'um', 'mm', 'cm', 'dm', 'm'.
         neurons : int, optional (default: None)
             Number of neurons to seed. This argument is considered only if the
-            :class:`~nngt.geometry.Shape` has no `parent`, otherwise, a
+            :class:`Shape` has no `parent`, otherwise, a
             position is generated for each neuron in `parent`.
 
         Returns
@@ -320,7 +319,7 @@ class Shape(Polygon):
         if self._parent is not None:
             neurons = self._parent.node_nb()
         if neurons is None:
-            raise InvalidArgument("`neurons` cannot be None if `parent` is.")
+            raise ValueError("`neurons` cannot be None if `parent` is.")
         if self.geom_type == "Rectangle":
             points = self._convex_hull.points
             min_x, max_x = points[:,0].min(), points[:,0].max()
