@@ -1,5 +1,22 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
+#
+# This file is part of the PyNCulture project, which aims at providing tools to
+# easily generate complex neuronal cultures.
+# Copyright (C) 2017 SENeC Initiative
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 Shape implementation using the
@@ -259,6 +276,7 @@ class Shape(Polygon):
         '''
         self._parent = weakref.proxy(parent) if parent is not None else None
         self._unit = unit
+        self._geom_type = 'Polygon'
         super(Shape, self).__init__(shell, holes=holes)
 
     @property
@@ -320,22 +338,22 @@ class Shape(Polygon):
             neurons = self._parent.node_nb()
         if neurons is None:
             raise ValueError("`neurons` cannot be None if `parent` is.")
-        if self.geom_type == "Rectangle":
+        if self._geom_type == "Rectangle":
             points = self._convex_hull.points
             min_x, max_x = points[:,0].min(), points[:,0].max()
             min_y, max_y = points[:,1].min(), points[:,1].max()
             ra_x = uniform(min_x, max_x, size=neurons)
             ra_y = uniform(min_y, max_y, size=neurons)
-            positions = np.vstack((ra_x, ra_y))
-        elif self.geom_type == "Disk":
+            positions = np.vstack((ra_x, ra_y)).T
+        elif self._geom_type == "Disk":
             theta = uniform(0, 2*np.pi, size=neurons)
             r = uniform(0, self.radius, size=neurons)
-            positions = np.vstack((r*np.cos(theta), r*np.sin(theta)))
-        elif self.geom_type == "Ellipse":
+            positions = np.vstack((r*np.cos(theta), r*np.sin(theta))).T
+        elif self._geom_type == "Ellipse":
             theta = uniform(0, 2*np.pi, size=neurons)
             r = uniform(0, 1, size=neurons)
             rx, ry = self.radii
-            positions = np.vstack((rx*r*np.cos(theta), ry*r*np.sin(theta)))
+            positions = np.vstack((rx*r*np.cos(theta), ry*r*np.sin(theta))).T
         else:
             points = []
             min_x, min_y, max_x, max_y = self.bounds

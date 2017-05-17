@@ -1,5 +1,27 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+#
+# This file is part of the PyNCulture project, which aims at providing tools to
+# easily generate complex neuronal cultures.
+# Copyright (C) 2017 SENeC Initiative
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Some tools present in this files are modified from the imagedraw project by
+# Philippe Guglielmetti.
+#
+# Contributors: S. Bottani, A. Quaresima
 
 '''
 Read dxf graphic file of growth region boundaries
@@ -23,10 +45,6 @@ bottom_right: (x_br,y_br)
 DX= [[x_tl,x_tlr],[x_tr,x_br],[x_br,x_bl],[x_bl,x_tl]]
 DY= [[y_tl,y_tlr],[y_tr,y_br],[y_br,y_bl],[y_bl,y_tl]]
 '''
-
-__author__ = "Samuel Bottani"
-__license__ = "LGPL"
-
 
 import itertools
 import logging
@@ -154,14 +172,6 @@ class DXF:
                 shapes.append(Shape(pts_polygon))
             else:
                 logging.warning('Unknown entity %s in dxf shapes file' % e)
-        
-        #~ for shape in shapes:
-            #~ fig, ax = plt.subplots()
-            
-            #~ plot_coords(ax, shape.exterior)
-            #~ patch = PolygonPatch(shape, alpha=0.5, zorder=2)
-            #~ ax.add_patch(patch)
-            #~ plt.show()
 
         return shapes
 

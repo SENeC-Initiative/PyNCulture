@@ -1,9 +1,29 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+#
+# This file is part of the PyNCulture project, which aims at providing tools to
+# easily generate complex neuronal cultures.
+# Copyright (C) 2017 SENeC Initiative
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from descartes.patch import PolygonPatch
 
 import matplotlib
 import matplotlib.pyplot as plt
 
-from PyNCulture import shapes_from_svg, shapes_from_dxf, culture_from_file
+import PyNCulture as pync
 
 
 # ------------- #
@@ -23,16 +43,16 @@ def shape2patch(ax, shape):
 
 # chose a file
 
-culture_file = "culture_with_holes.svg"
+# culture_file = "culture_with_holes.svg"
 # culture_file = "culture.dxf"
-# culture_file = "culture_from_filled_polygons.svg"
+culture_file = "culture_from_filled_polygons.svg"
 
 shapes = None
 
 if culture_file.endswith(".dxf"):
-    shapes = shapes_from_dxf(culture_file)
+    shapes = pync.shapes_from_dxf(culture_file)
 else:
-    shapes = shapes_from_svg(culture_file)
+    shapes = pync.shapes_from_svg(culture_file)
 
 # --------------- #
 # Plot the shapes #
@@ -54,7 +74,7 @@ ax.set_aspect(1)
 fig2, ax2 = plt.subplots()
 plt.title("culture")
 
-culture = culture_from_file(culture_file)
+culture = pync.culture_from_file(culture_file)
 
 shape2patch(ax2, culture)
 ax2.set_aspect(1)
@@ -67,7 +87,7 @@ ax2.set_aspect(1)
 fig3, ax3 = plt.subplots()
 plt.title("culture with neurons")
 
-culture_bis = culture_from_file(culture_file)
+culture_bis = pync.culture_from_file(culture_file)
 pos = culture_bis.seed_neurons(neurons=1000)
 
 shape2patch(ax3, culture_bis)
