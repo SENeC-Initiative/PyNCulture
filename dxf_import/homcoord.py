@@ -1,5 +1,27 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+#
+# This file is part of the PyNCulture project, which aims at providing tools to
+# easily generate complex neuronal cultures.
+# Copyright (C) 2017 SENeC Initiative
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# The tools present in this file are modified from the homcoord.py file by
+# John W. Shipman (see __credits__)
+
 """
 2D Homogeneous coordinates with transformations
 
@@ -31,6 +53,7 @@ TWO_PI  = 2. * pi  # 360 degrees in radians
 # ----------- #
 
 class Pt(object):
+
     '''
     Represents a homogeneous coordinate in 2-space.
 
@@ -199,6 +222,7 @@ class Pt(object):
 # -------------------- #
 
 class Xform(object):
+
     '''
     Represents an arbitrary homogeneous coordinate transform.
 
@@ -249,6 +273,7 @@ class Xform(object):
     ORIGIN:      [ the origin as a Pt instance ]
     UNIT:        [ a point 1.0 along the line x=y ]
     '''
+
     ORIGIN = Pt(0,0)
     UNIT = ORIGIN.radial(1.0, RAD_45)
 
@@ -341,18 +366,19 @@ class Xform(object):
 # ----------- #
 
 class Polar(object):
-    '''Represents a point in polar coordinates.
+    '''
+    Represents a point in polar coordinates.
 
-      Exports:
-        Polar(r, theta):
-          [ r and theta are numbers ->
-              return a new Polar instance representing radius r
-              and angle theta ]
-        .r, .theta:  [ as passed to constructor ]
-        .toCartesian():
-          [ return self in Cartesian coordinates as a Pt instance ]
-        .__str__():
-          [ return self as a string "(r, theta)" ]
+    Exports:
+    Polar(r, theta):
+      [ r and theta are numbers ->
+          return a new Polar instance representing radius r
+          and angle theta ]
+    .r, .theta:  [ as passed to constructor ]
+    .toCartesian():
+      [ return self in Cartesian coordinates as a Pt instance ]
+    .__str__():
+      [ return self as a string "(r, theta)" ]
     '''
 
     def __init__(self, *p):
@@ -378,29 +404,31 @@ class Polar(object):
 # ---------- #
 
 class Line(object):
-    '''Represents a geometric line.
 
-      Exports:
-        Line(a, b, c):
-          [ a, b, and c are floats ->
-              return a Line instance representing ax+by+c=0 ]
-        .a, .b, .c:  [ as passed to constructor, read-only ]
-        .__str__(self):   [ return self as a string ]
-        .intersect(other):
-          [ other is a Line instance ->
-              if self and other intersect ->
-                return the intersection as a Pt
-              else -> raise ValueError ]
-        Line.twoPoint(p1, p2):       # Static method
-          [ p1 and p2 are Pt instances ->
-              if p1 and p2 are distinct ->
-                return a Line instance representing the line that
-                intersects p1 and p2
-              else -> raise ValueError ]
-        Line.pointBearing(p, bears):   # Static method
-          [ (p is a Pt instance) and
-            (bears is a Cartesian bearing in radians) ->
-              return the line through p at bearing (bears) ]
+    '''
+    Represents a geometric line.
+
+    Exports:
+    Line(a, b, c):
+      [ a, b, and c are floats ->
+          return a Line instance representing ax+by+c=0 ]
+    .a, .b, .c:  [ as passed to constructor, read-only ]
+    .__str__(self):   [ return self as a string ]
+    .intersect(other):
+      [ other is a Line instance ->
+          if self and other intersect ->
+            return the intersection as a Pt
+          else -> raise ValueError ]
+    Line.twoPoint(p1, p2):       # Static method
+      [ p1 and p2 are Pt instances ->
+          if p1 and p2 are distinct ->
+            return a Line instance representing the line that
+            intersects p1 and p2
+          else -> raise ValueError ]
+    Line.pointBearing(p, bears):   # Static method
+      [ (p is a Pt instance) and
+        (bears is a Cartesian bearing in radians) ->
+          return the line through p at bearing (bears) ]
     '''
 
     def __init__(self, a, b, c):
@@ -583,23 +611,9 @@ class Segment(object):
 
         # Check if intersection is in the segments
 
-        def is_in_segment(pt,seg):
-            '''
-            Returns True if pt is in the segment
-            '''
-
-            scaling_x=np.abs((pt.x-seg.b.x)/(pt.x-seg.a.x))
-            scaling_y=np.abs((pt.y-seg.b.y)/(pt.y-seg.a.y))
-
-            if scaling_x != scaling_y :
-                return False
-
-            if scaling_x >1. :
-                return False
-
-            return True
-
-        if (is_in_segment(intersection,self) and (is_in_segment(intersection,other))) :
+        self_in_segment = is_in_segment(intersection, self)
+        other_in_segment = is_in_segment(intersection,other)
+        if self_in_segment and other_in_segment:
             return intersection
         return False
 
@@ -630,6 +644,23 @@ def normAngle(theta):
     Normalize an angle in radians to [0, 2*pi).
     '''
     return theta % TWO_PI
+
+
+def is_in_segment(pt,seg):
+    '''
+    Returns True if a point is in the segment.
+    '''
+
+    scaling_x=np.abs((pt.x-seg.b.x)/(pt.x-seg.a.x))
+    scaling_y=np.abs((pt.y-seg.b.y)/(pt.y-seg.a.y))
+
+    if scaling_x != scaling_y :
+        return False
+
+    if scaling_x >1. :
+        return False
+
+    return True
 
 
 # TRANSFORM FUNCTIONS
