@@ -259,6 +259,7 @@ class Shape(Polygon):
         '''
         self._parent = weakref.proxy(parent) if parent is not None else None
         self._unit = unit
+        p2._geom_type = 'Polygon'
         super(Shape, self).__init__(shell, holes=holes)
 
     @property
@@ -320,22 +321,22 @@ class Shape(Polygon):
             neurons = self._parent.node_nb()
         if neurons is None:
             raise ValueError("`neurons` cannot be None if `parent` is.")
-        if self.geom_type == "Rectangle":
+        if self._geom_type == "Rectangle":
             points = self._convex_hull.points
             min_x, max_x = points[:,0].min(), points[:,0].max()
             min_y, max_y = points[:,1].min(), points[:,1].max()
             ra_x = uniform(min_x, max_x, size=neurons)
             ra_y = uniform(min_y, max_y, size=neurons)
-            positions = np.vstack((ra_x, ra_y))
-        elif self.geom_type == "Disk":
+            positions = np.vstack((ra_x, ra_y)).T
+        elif self._geom_type == "Disk":
             theta = uniform(0, 2*np.pi, size=neurons)
             r = uniform(0, self.radius, size=neurons)
-            positions = np.vstack((r*np.cos(theta), r*np.sin(theta)))
-        elif self.geom_type == "Ellipse":
+            positions = np.vstack((r*np.cos(theta), r*np.sin(theta))).T
+        elif self._geom_type == "Ellipse":
             theta = uniform(0, 2*np.pi, size=neurons)
             r = uniform(0, 1, size=neurons)
             rx, ry = self.radii
-            positions = np.vstack((rx*r*np.cos(theta), ry*r*np.sin(theta)))
+            positions = np.vstack((rx*r*np.cos(theta), ry*r*np.sin(theta))).T
         else:
             points = []
             min_x, min_y, max_x, max_y = self.bounds
