@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-#!/usr/bin/env python
+#!/usr/bin/env python
 #-*- coding:utf-8 -*-
 #
 # This file is part of the PyNCulture project, which aims at providing tools to
@@ -21,6 +20,8 @@
 #
 # The tools present in this file are modified from the homcoord.py file by
 # John W. Shipman (see __credits__)
+#
+# Contributor: S. Bottani
 
 """
 2D Homogeneous coordinates with transformations

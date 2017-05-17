@@ -20,6 +20,8 @@
 #
 # Some tools present in this files are modified from the imagedraw project by
 # Philippe Guglielmetti.
+#
+# Contributors: S. Bottani, A. Quaresima
 
 '''
 Read dxf graphic file of growth region boundaries
