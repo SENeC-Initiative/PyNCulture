@@ -23,7 +23,7 @@ Module dedicated to the description of the spatial boundaries of neuronal
 cultures.
 This allows for the generation of neuronal networks that are embedded in space.
 
-The `shapely<http://toblerity.org/shapely/index.html>`_ library is used to
+The `shapely <http://toblerity.org/shapely/index.html>`_ library is used to
 generate and deal with the spatial environment of the neurons.
 
 
