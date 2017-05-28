@@ -219,11 +219,14 @@ class Shape(Polygon):
             Rectangle shape.
         '''
         centroid = np.array(centroid)
-        shape = Shape.from_polygon(
-            Point(centroid).buffer(radius), unit=unit, parent=parent)
-        shape._geom_type = "Disk"
-        shape.radius = radius
-        return shape
+        minx = centroid[0] - radius
+        maxx = centroid[0] + radius
+        disk = cls.from_polygon(
+            Point(centroid).buffer(radius), min_x=minx, max_x=maxx, unit=unit,
+            parent=parent)
+        disk._geom_type = "Disk"
+        disk.radius = radius
+        return disk
 
     @classmethod
     def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None):
@@ -249,12 +252,14 @@ class Shape(Polygon):
         '''
         centroid = np.array(centroid)
         rx, ry = radii
+        minx = centroid[0] - rx
+        maxx = centroid[0] + rx
         ellipse = cls.from_polygon(
-            scale(Point(centroid).buffer(1.), rx, ry), unit=unit,
-            parent=parent)
-        shape._geom_type = "Ellipse"
-        shape.radii = radii
-        return shape
+            scale(Point(centroid).buffer(1.), rx, ry), min_x=minx, max_x=maxx,
+            unit=unit, parent=parent)
+        ellipse._geom_type = "Ellipse"
+        ellipse.radii = radii
+        return ellipse
 
     def __init__(self, shell, holes=None, unit='um', parent=None):
         '''
@@ -353,42 +358,40 @@ class Shape(Polygon):
             raise ValueError("`neurons` cannot be None if `parent` is None.")
         # set min/max
         if xmin is None:
-            xmin = np.inf
+            xmin = -np.inf
         if ymin is None:
-            ymin = np.inf
+            ymin = -np.inf
         if xmax is None:
-            xmax = -np.inf
+            xmax = np.inf
         if ymax is None:
-            ymax = -np.inf
+            ymax = np.inf
         min_x, min_y, max_x, max_y = self.bounds
-        # check for special cases
-        if (min_x, min_y, max_x, max_y) == (None, None, None, None):
-            if self._geom_type == "Disk":
-                theta = uniform(0, 2*np.pi, size=neurons)
-                r = uniform(0, self.radius, size=neurons)
-                positions = np.vstack((r*np.cos(theta), r*np.sin(theta))).T
-            elif self._geom_type == "Ellipse":
-                theta = uniform(0, 2*np.pi, size=neurons)
-                r = uniform(0, 1, size=neurons)
-                rx, ry = self.radii
-                positions = np.vstack(
-                    (rx*r*np.cos(theta), ry*r*np.sin(theta))).T
-        else:
-            min_x = max(xmin, min_x)
-            min_y = max(ymin, min_y)
-            max_x = min(xmax, max_x)
-            max_y = min(ymax, max_y)
+        min_x = max(xmin, min_x)
+        min_y = max(ymin, min_y)
+        max_x = min(xmax, max_x)
+        max_y = min(ymax, max_y)
+        # remaining tests
         if self._geom_type == "Rectangle":
-            points = self._convex_hull.points
-            ra_x = uniform(min_x, max_x, size=neurons)
-            ra_y = uniform(min_y, max_y, size=neurons)
-            positions = np.vstack((ra_x, ra_y)).T
+            xx = uniform(min_x, max_x, size=neurons)
+            yy = uniform(min_y, max_y, size=neurons)
+            positions = np.vstack((xx, yy)).T
+        elif (self._geom_type == "Disk"
+              and (xmin, ymin, xmax, ymax) == self.bounds):
+            theta = uniform(0, 2*np.pi, size=neurons)
+            # take some precaution to stay inside the shape
+            r = self.radius*np.sqrt(uniform(0, 0.99, size=neurons))
+            positions = np.vstack(
+                (r*np.cos(theta) + self.centroid[0],
+                 r*np.sin(theta) + self.centroid[1])).T
         else:
-            rect = Polygon(
-                [(xmin, ymin), (xmin, ymax), (xmax, ymax), (xmax, ymin)])
+            rect = Polygon([(min_x, min_y), (min_x, max_y), (max_x, max_y),
+                            (max_x, min_y)])
             seed_area = self.intersection(rect)
+            if not isinstance(seed_area, Polygon):
+                raise ValueError("Invalid boundary value for seed region; "
+                                 "check that the min/max values you requested "
+                                 "are inside the shape.")
             points = []
-            min_x, min_y, max_x, max_y = self.bounds
             p = Point()
             while len(points) < neurons:
                 new_x = uniform(min_x, max_x, neurons-len(points))
