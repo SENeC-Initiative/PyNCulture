@@ -31,8 +31,8 @@ from matplotlib.path import Path
 
 
 
-def plot_shape(shape, axis, m='', mc="#999999", fc="#8888ff", ec="#444444",
-               alpha=0.5, **kwargs):
+def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
+               ec="#444444", alpha=0.5, **kwargs):
     '''
     Plot a shape (set the `axis` aspect to 1 to respect the proportions).
 
@@ -40,8 +40,9 @@ def plot_shape(shape, axis, m='', mc="#999999", fc="#8888ff", ec="#444444",
     ----------
     shape : :class:`~PyNCulture.Shape`
         Shape to plot.
-    axis : :class:`matplotlib.axes.Axes` instance
-        Axis on which the shape should be plotted.
+    axis : :class:`matplotlib.axes.Axes` instance, optional (default: None)
+        Axis on which the shape should be plotted. By default, a new figure
+        is created.
     m : str, optional (default: invisible)
         Marker to plot the shape's vertices, matplotlib syntax.
     mc : str, optional (default: "#999999")
@@ -54,6 +55,9 @@ def plot_shape(shape, axis, m='', mc="#999999", fc="#8888ff", ec="#444444",
         Opacity of the shape's interior.
     kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
     '''
+    if axis is None:
+        import matplotlib.pyplot as plt
+        fig, axis = plt.subplots()
     _plot_coords(axis, shape.exterior, m, mc, ec)
     for path in shape.interiors:
         _plot_coords(axis, path.coords, m, mc, ec)
