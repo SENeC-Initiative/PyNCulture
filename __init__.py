@@ -23,13 +23,36 @@ Module dedicated to the description of the spatial boundaries of neuronal
 cultures.
 This allows for the generation of neuronal networks that are embedded in space.
 
-The `shapely<http://toblerity.org/shapely/index.html>`_ library is used to
+The `shapely <http://toblerity.org/shapely/index.html>`_ library is used to
 generate and deal with the spatial environment of the neurons.
+
+
+Examples
+========
+
+Basic features
+--------------
+
+The module provides a backup ``Shape`` object, which can be used with only
+the `numpy ` and `scipy` libraries.
+It allows for the generation of simple rectangle, disk and ellipse shapes.
+
+.. literalinclude:: examples/backup_shape.py
+   :lines: 23-
+
+All these features are of course still available with the more advanced
+``Shape`` object which inherits from :class:`shapely.geometry.Polygon`.
+
+
+Complex shapes from files
+-------------------------
 
 
 Content
 =======
 """
+
+import logging
 
 import numpy as np
 
@@ -39,19 +62,23 @@ try:
     if speedups.available:
         speedups.enable()
     from .shape import Shape
+    _shapely_support = True
 except ImportError:
-    from .backup_shape import Shape
+    from .backup_shape import BackupShape as Shape
+    _shapely_support = False
 
 
-__all__ = [
-    "Shape",
-    "culture_from_file",
-]
+__all__ = ["Shape"]
+
+if _shapely_support:
+    __all__.append("culture_from_file")
 
 
 # ------------------------------------------ #
 # Try to import optional SVG and DXF support #
 # ------------------------------------------ #
+
+_logger = logging.getLogger(__name__)
 
 _svg_support = False
 _dxf_support = False
@@ -61,16 +88,22 @@ try:
     from .svgtools import *
     __all__.extend(svgtools.__all__)
     _svg_support = True
-except Exception as e:
-    print("Could not import svgtools: {}".format(e))
+except ImportError as e:
+    _logger.info("Could not import svgtools: {}".format(e))
 
 try:
     from . import dxftools
     from .dxftools import *
     __all__.extend(dxftools.__all__)
     _dxf_support = True
-except Exception as e:
-    print("Could not import dxftools: {}".format(e))
+except ImportError as e:
+    _logger.info("Could not import dxftools: {}".format(e))
+
+try:
+    from plot import plot_shape
+    __all__.append('plot_shape')
+except ImportError as e:
+    _logger.info('Could not import plotting tools: {}'.format(e))
 
 
 # ---------------------- #
@@ -85,6 +118,29 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
     Valid file needs to contain only closed objects among:
     rectangles, circles, ellipses, polygons, and closed curves.
     The objects do not have to be simply connected.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the SVG or DXF file.
+    min_x : float, optional (default: -5000.)
+        Position of the leftmost coordinate of the shape's exterior, in `unit`.
+    max_x : float, optional (default: 5000.)
+        Position of the rightmost coordinate of the shape's exterior, in
+        `unit`.
+    , unit : str, optional (default: 'um')
+        Unit of the positions, among micrometers ('um'), milimeters ('mm'),
+        centimeters ('cm'), decimeters ('dm'), or meters ('m').
+     parent : :class:`nngt.Graph` or subclass, optional (default: None)
+        Assign a parent graph if working with NNGT.
+    interpolate_curve : int, optional (default: 50)
+        Number of points by which a curve should be interpolated into segments.
+
+    Returns
+    -------
+    culture : :class:`PyNCulture.Shape` object
+        Shape, vertically centred around zero, such that
+        :math:`min(y) + max(y) = 0`.
     '''
     shapes, points = None, None
 
@@ -135,9 +191,17 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
         exterior = np.array(main_container.exterior.coords)
         leftmost = np.min(exterior[:, 0])
         rightmost = np.max(exterior[:, 0])
+        y_center = 0.5*(np.min(exterior[:, 1]) + np.max(exterior[:, 1]))
         scaling = (max_x - min_x) / (rightmost - leftmost)
+        y_center *= scaling
         exterior *= scaling
+        x_trans = min_x - np.min(exterior[:, 0])
+        exterior[:, 0] += x_trans
+        exterior[:, 1] -= y_center
         interiors = [np.multiply(l, scaling) for l in interiors]
+        for path in interiors:
+            path[:, 0] += x_trans
+            path[:, 1] -= y_center
 
     culture = Shape(exterior, interiors, unit=unit, parent=parent)
     return culture

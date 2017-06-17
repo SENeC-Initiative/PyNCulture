@@ -18,48 +18,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-""" Loading a culture from an SVG or DXF file """
+""" Examples for the backup shape """
 
 import matplotlib.pyplot as plt
 
 import PyNCulture as pync
 
 
-''' Choose a file '''
-culture_file = "culture_from_filled_polygons.svg"
-# culture_file = "culture_with_holes.svg"
-# culture_file = "culture.dxf"
-
-shapes = None
-
-if culture_file.endswith(".dxf"):
-    shapes = pync.shapes_from_dxf(culture_file)
-else:
-    shapes = pync.shapes_from_svg(culture_file)
-
-''' Plot the shapes '''
 fig, ax = plt.subplots()
-plt.title("shapes")
 
-for shape in shapes:
-    pync.plot_shape(shape, ax)
+''' Choose a shape (uncomment the desired line) '''
+culture = pync.Shape.rectangle(15, 20, (5, 0))
+# culture = pync.Shape.disk(20, (5, 0))
+# culture = pync.Shape.ellipse((20, 5), (5, 0))
 
-''' Make a culture '''
-fig2, ax2 = plt.subplots()
-plt.title("culture")
+''' Generate the neurons inside '''
+pos = culture.seed_neurons(neurons=1000, xmax=0., ymax=0.)
 
-culture = pync.culture_from_file(culture_file)
-
-pync.plot_shape(culture, ax2)
-
-''' Add neurons '''
-fig3, ax3 = plt.subplots()
-plt.title("culture with neurons")
-
-culture_bis = pync.culture_from_file(culture_file)
-pos = culture_bis.seed_neurons(neurons=1000, xmax=0)
-
-pync.plot_shape(culture_bis, ax3)
-ax3.scatter(pos[:, 0], pos[:, 1], s=2, zorder=3)
+''' Plot '''
+pync.plot_shape(culture, ax)
+ax.scatter(pos[:, 0], pos[:, 1], s=2, zorder=2)
 
 plt.show()
