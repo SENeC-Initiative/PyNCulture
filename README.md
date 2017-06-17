@@ -21,9 +21,9 @@ Except for ``shapely``, all other modules can be installed through ``pip``.
 
 ## Features
 
-1. Load objects from SVG files
-*  Load objects from DXF files (experimental)
-*  Generate neurons randomly inside the culture.
+* Load objects from SVG files
+* Load objects from DXF files (experimental)
+* Generate neurons randomly inside the culture.
 
 
 ## Examples

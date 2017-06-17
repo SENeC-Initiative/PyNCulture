@@ -20,7 +20,7 @@
 
 '''
 Shape implementation using the
-`shapely<http://toblerity.org/shapely/index.html>`_ library.
+`shapely <http://toblerity.org/shapely/index.html>`_ library.
 '''
 
 import weakref
@@ -219,11 +219,14 @@ class Shape(Polygon):
             Rectangle shape.
         '''
         centroid = np.array(centroid)
-        shape = Shape.from_polygon(
-            Point(centroid).buffer(radius), unit=unit, parent=parent)
-        shape._geom_type = "Disk"
-        shape.radius = radius
-        return shape
+        minx = centroid[0] - radius
+        maxx = centroid[0] + radius
+        disk = cls.from_polygon(
+            Point(centroid).buffer(radius), min_x=minx, max_x=maxx, unit=unit,
+            parent=parent)
+        disk._geom_type = "Disk"
+        disk.radius = radius
+        return disk
 
     @classmethod
     def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None):
@@ -249,12 +252,14 @@ class Shape(Polygon):
         '''
         centroid = np.array(centroid)
         rx, ry = radii
+        minx = centroid[0] - rx
+        maxx = centroid[0] + rx
         ellipse = cls.from_polygon(
-            scale(Point(centroid).buffer(1.), rx, ry), unit=unit,
-            parent=parent)
-        shape._geom_type = "Ellipse"
-        shape.radii = radii
-        return shape
+            scale(Point(centroid).buffer(1.), rx, ry), min_x=minx, max_x=maxx,
+            unit=unit, parent=parent)
+        ellipse._geom_type = "Ellipse"
+        ellipse.radii = radii
+        return ellipse
 
     def __init__(self, shell, holes=None, unit='um', parent=None):
         '''
@@ -314,20 +319,33 @@ class Shape(Polygon):
         """
         raise NotImplementedError("To be implemented.")
 
-    def seed_neurons(self, unit=None, neurons=None):
+    def seed_neurons(self, neurons=None, xmin=None, xmax=None, ymin=None,
+                     ymax=None, unit=None):
         '''
         Return the positions of the neurons inside the
         :class:`Shape`.
 
         Parameters
         ----------
+        neurons : int, optional (default: None)
+            Number of neurons to seed. This argument is considered only if the
+            :class:`Shape` has no `parent`, otherwise, a position is generated
+            for each neuron in `parent`.
+        xmin : double, optional (default: lowest abscissa of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            right of `xmin`.
+        xmax : double, optional (default: highest abscissa of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            left of `xmax`.
+        ymin : double, optional (default: lowest ordinate of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            upper side of `ymin`.
+        ymax : double, optional (default: highest ordinate of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            lower side of `ymax`.
         unit : string (default: None)
             Unit in which the positions of the neurons will be returned, among
             'um', 'mm', 'cm', 'dm', 'm'.
-        neurons : int, optional (default: None)
-            Number of neurons to seed. This argument is considered only if the
-            :class:`Shape` has no `parent`, otherwise, a
-            position is generated for each neuron in `parent`.
 
         Returns
         -------
@@ -337,33 +355,50 @@ class Shape(Polygon):
         if self._parent is not None:
             neurons = self._parent.node_nb()
         if neurons is None:
-            raise ValueError("`neurons` cannot be None if `parent` is.")
+            raise ValueError("`neurons` cannot be None if `parent` is None.")
+        # set min/max
+        if xmin is None:
+            xmin = -np.inf
+        if ymin is None:
+            ymin = -np.inf
+        if xmax is None:
+            xmax = np.inf
+        if ymax is None:
+            ymax = np.inf
+        min_x, min_y, max_x, max_y = self.bounds
+        min_x = max(xmin, min_x)
+        min_y = max(ymin, min_y)
+        max_x = min(xmax, max_x)
+        max_y = min(ymax, max_y)
+        # remaining tests
         if self._geom_type == "Rectangle":
-            points = self._convex_hull.points
-            min_x, max_x = points[:,0].min(), points[:,0].max()
-            min_y, max_y = points[:,1].min(), points[:,1].max()
-            ra_x = uniform(min_x, max_x, size=neurons)
-            ra_y = uniform(min_y, max_y, size=neurons)
-            positions = np.vstack((ra_x, ra_y)).T
-        elif self._geom_type == "Disk":
+            xx = uniform(min_x, max_x, size=neurons)
+            yy = uniform(min_y, max_y, size=neurons)
+            positions = np.vstack((xx, yy)).T
+        elif (self._geom_type == "Disk"
+              and (xmin, ymin, xmax, ymax) == self.bounds):
             theta = uniform(0, 2*np.pi, size=neurons)
-            r = uniform(0, self.radius, size=neurons)
-            positions = np.vstack((r*np.cos(theta), r*np.sin(theta))).T
-        elif self._geom_type == "Ellipse":
-            theta = uniform(0, 2*np.pi, size=neurons)
-            r = uniform(0, 1, size=neurons)
-            rx, ry = self.radii
-            positions = np.vstack((rx*r*np.cos(theta), ry*r*np.sin(theta))).T
+            # take some precaution to stay inside the shape
+            r = self.radius*np.sqrt(uniform(0, 0.99, size=neurons))
+            positions = np.vstack(
+                (r*np.cos(theta) + self.centroid[0],
+                 r*np.sin(theta) + self.centroid[1])).T
         else:
+            rect = Polygon([(min_x, min_y), (min_x, max_y), (max_x, max_y),
+                            (max_x, min_y)])
+            seed_area = self.intersection(rect)
+            if not isinstance(seed_area, Polygon):
+                raise ValueError("Invalid boundary value for seed region; "
+                                 "check that the min/max values you requested "
+                                 "are inside the shape.")
             points = []
-            min_x, min_y, max_x, max_y = self.bounds
             p = Point()
             while len(points) < neurons:
                 new_x = uniform(min_x, max_x, neurons-len(points))
                 new_y = uniform(min_y, max_y, neurons-len(points))
                 for x, y in zip(new_x, new_y):
                     p.coords = (x, y)
-                    if self.contains(p):
+                    if seed_area.contains(p):
                         points.append((x, y))
             positions = np.array(points)
 
