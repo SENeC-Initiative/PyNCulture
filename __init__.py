@@ -100,7 +100,7 @@ except ImportError as e:
     _logger.info("Could not import dxftools: {}".format(e))
 
 try:
-    from plot import plot_shape
+    from .plot import plot_shape
     __all__.append('plot_shape')
 except ImportError as e:
     _logger.info('Could not import plotting tools: {}'.format(e))
