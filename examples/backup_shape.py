@@ -22,21 +22,21 @@
 
 import matplotlib.pyplot as plt
 
-import PyNCulture as pync
+import PyNCulture as pnc
 
 
 fig, ax = plt.subplots()
 
 ''' Choose a shape (uncomment the desired line) '''
-culture = pync.Shape.rectangle(15, 20, (5, 0))
-# culture = pync.Shape.disk(20, (5, 0))
-# culture = pync.Shape.ellipse((20, 5), (5, 0))
+culture = pnc.Shape.rectangle(15, 20, (5, 0))
+# culture = pnc.Shape.disk(20, (5, 0))
+# culture = pnc.Shape.ellipse((20, 5), (5, 0))
 
 ''' Generate the neurons inside '''
 pos = culture.seed_neurons(neurons=1000, xmax=0., ymax=0.)
 
 ''' Plot '''
-pync.plot_shape(culture, ax)
+pnc.plot_shape(culture, ax)
 ax.scatter(pos[:, 0], pos[:, 1], s=2, zorder=2)
 
 plt.show()

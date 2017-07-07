@@ -38,7 +38,7 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
 
     Parameters
     ----------
-    shape : :class:`~PyNCulture.Shape`
+    shape : :class:`Shape`
         Shape to plot.
     axis : :class:`matplotlib.axes.Axes` instance, optional (default: None)
         Axis on which the shape should be plotted. By default, a new figure

@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+Principle
+=========
+
 Module dedicated to the description of the spatial boundaries of neuronal
 cultures.
 This allows for the generation of neuronal networks that are embedded in space.
@@ -34,7 +37,7 @@ Basic features
 --------------
 
 The module provides a backup ``Shape`` object, which can be used with only
-the `numpy ` and `scipy` libraries.
+the `numpy` and `scipy` libraries.
 It allows for the generation of simple rectangle, disk and ellipse shapes.
 
 .. literalinclude:: examples/backup_shape.py
@@ -46,6 +49,9 @@ All these features are of course still available with the more advanced
 
 Complex shapes from files
 -------------------------
+
+.. literalinclude:: examples/load_culture.py
+   :lines: 23-
 
 
 Content
@@ -138,7 +144,7 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
 
     Returns
     -------
-    culture : :class:`PyNCulture.Shape` object
+    culture : :class:`Shape` object
         Shape, vertically centred around zero, such that
         :math:`min(y) + max(y) = 0`.
     '''
