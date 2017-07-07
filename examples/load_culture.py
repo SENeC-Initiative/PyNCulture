@@ -22,7 +22,7 @@
 
 import matplotlib.pyplot as plt
 
-import PyNCulture as pync
+import PyNCulture as pnc
 
 
 ''' Choose a file '''
@@ -33,33 +33,33 @@ culture_file = "culture_from_filled_polygons.svg"
 shapes = None
 
 if culture_file.endswith(".dxf"):
-    shapes = pync.shapes_from_dxf(culture_file)
+    shapes = pnc.shapes_from_dxf(culture_file)
 else:
-    shapes = pync.shapes_from_svg(culture_file)
+    shapes = pnc.shapes_from_svg(culture_file)
 
 ''' Plot the shapes '''
 fig, ax = plt.subplots()
 plt.title("shapes")
 
 for shape in shapes:
-    pync.plot_shape(shape, ax)
+    pnc.plot_shape(shape, ax)
 
 ''' Make a culture '''
 fig2, ax2 = plt.subplots()
 plt.title("culture")
 
-culture = pync.culture_from_file(culture_file)
+culture = pnc.culture_from_file(culture_file)
 
-pync.plot_shape(culture, ax2)
+pnc.plot_shape(culture, ax2)
 
 ''' Add neurons '''
 fig3, ax3 = plt.subplots()
 plt.title("culture with neurons")
 
-culture_bis = pync.culture_from_file(culture_file)
+culture_bis = pnc.culture_from_file(culture_file)
 pos = culture_bis.seed_neurons(neurons=1000, xmax=0)
 
-pync.plot_shape(culture_bis, ax3)
+pnc.plot_shape(culture_bis, ax3)
 ax3.scatter(pos[:, 0], pos[:, 1], s=2, zorder=3)
 
 plt.show()
