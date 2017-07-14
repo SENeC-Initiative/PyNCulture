@@ -26,6 +26,7 @@ Shape implementation using the
 import weakref
 
 import shapely
+from shapely.wkt import loads
 from shapely.affinity import scale
 from shapely.geometry import Point, Polygon
 
@@ -178,7 +179,7 @@ class Shape(Polygon):
         --------
         :func:`Shape.from_polygon` for details about the other arguments.
         '''
-        p = shapely.wkt.loads(wtk)
+        p = loads(wtk)
         return cls.from_polygon(
             p, min_x=min_x, max_x=max_x, unit=unit, parent=parent)
 
