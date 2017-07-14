@@ -76,6 +76,10 @@ except ImportError:
 
 __all__ = ["Shape"]
 
+
+version = 0.2
+
+
 if _shapely_support:
     __all__.append("culture_from_file")
 
