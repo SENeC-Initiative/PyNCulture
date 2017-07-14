@@ -143,6 +143,8 @@ class Shape(Polygon):
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'
+        parent : :class:`nngt.Graph` object
+            The parent which will become a :class:`nngt.SpatialGraph`.
         '''
         assert isinstance(polygon, Polygon), "Expected a Polygon object."
         # find the scaling factor
@@ -159,6 +161,26 @@ class Shape(Polygon):
         p2._unit = unit
         p2._geom_type = 'Polygon'
         return p2
+
+    @classmethod
+    def from_wtk(cls, wtk, min_x=-5000., max_x=5000., unit='um', parent=None):
+        '''
+        Create a shape from a WTK string.
+
+        .. versionadded:: 0.2
+
+        Parameters
+        ----------
+        wtk : str
+            The WTK string.
+
+        See also
+        --------
+        :func:`Shape.from_polygon` for details about the other arguments.
+        '''
+        p = shapely.wkt.loads(wtk)
+        return cls.from_polygon(
+            p, min_x=min_x, max_x=max_x, unit=unit, parent=parent)
 
     @classmethod
     def rectangle(cls, height, width, centroid=(0., 0.), unit='um',
