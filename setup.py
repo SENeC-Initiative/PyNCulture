@@ -29,35 +29,36 @@ move = (
     'svgtools.py',
 )
 
+
 for fname in move:
+    print('moving ' + fname + ' to ' + directory + fname)
     os.rename(fname, directory + fname)
 
 
-# install
-setup(
-    name = 'PyNCulture',
-    version = '0.2.0',
-    description = 'Python module to describe neuronal cultures as complex shapes.',
-    package_dir = {'': '.'},
-    packages = find_packages('.'),
+try:
+    # install
+    setup(
+        name = 'PyNCulture',
+        version = '0.2.0',
+        description = 'Python module to describe neuronal cultures as complex shapes.',
+        package_dir = {'': '.'},
+        packages = find_packages('.'),
 
-    # Requirements
-    install_requires = ['numpy', 'scipy>=0.11', 'matplotlib'],
-    extras_require = {
-        'dxftools': 'dxftools',
-        'shapely': 'shapely',
-        'svgtools': 'svgtools'
-    },
+        # Requirements
+        install_requires = ['numpy', 'scipy>=0.11', 'matplotlib'],
+        extras_require = {
+            'dxfgrabber': 'dxfgrabber',
+            'shapely': 'shapely',
+            'svgtools': 'svgtools'
+        },
 
-    # Metadata
-    url = 'https://github.com/Silmathoron/PyNCulture',
-    author = 'Tanguy Fardet',
-    author_email = 'tanguy.fardet@univ-paris-diderot.fr',
-    license = 'GPL3',
-    keywords = 'neuronal cultures geometry'
-)
-
-
-# move back
-for fname in move:
-    os.rename(directory + fname, fname)
+        # Metadata
+        url = 'https://github.com/Silmathoron/PyNCulture',
+        author = 'Tanguy Fardet',
+        author_email = 'tanguy.fardet@univ-paris-diderot.fr',
+        license = 'GPL3',
+        keywords = 'neuronal cultures geometry'
+    )
+finally:
+    for fname in move:
+        os.rename(directory + fname, fname)
