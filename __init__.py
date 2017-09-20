@@ -89,6 +89,7 @@ if _shapely_support:
 # ------------------------------------------ #
 
 _logger = logging.getLogger(__name__)
+from .pync_log import _log_message
 
 _svg_support = False
 _dxf_support = False
@@ -99,7 +100,7 @@ try:
     __all__.extend(svgtools.__all__)
     _svg_support = True
 except ImportError as e:
-    _logger.info("Could not import svgtools: {}".format(e))
+    _log_message(_logger, "INFO", "Could not import svgtools: {}".format(e))
 
 try:
     from . import dxftools
@@ -107,13 +108,13 @@ try:
     __all__.extend(dxftools.__all__)
     _dxf_support = True
 except ImportError as e:
-    _logger.info("Could not import dxftools: {}".format(e))
+    _log_message(_logger, "INFO", "Could not import dxftools: {}".format(e))
 
 try:
     from .plot import plot_shape
     __all__.append('plot_shape')
 except ImportError as e:
-    _logger.info('Could not import plotting tools: {}'.format(e))
+    _log_message(_logger, "INFO", 'Could not import plotting: {}'.format(e))
 
 
 # ---------------------- #
