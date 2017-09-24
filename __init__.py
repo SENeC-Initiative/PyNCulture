@@ -216,5 +216,5 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
 
     culture = Shape(exterior, interiors, unit=unit, parent=parent)
     culture = Shape.from_polygon(culture.buffer(0), min_x=min_x, max_x=max_x,
-                                 unit=unit, parent=parent))
+                                 unit=unit, parent=parent)
     return culture
