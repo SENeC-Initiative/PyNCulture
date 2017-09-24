@@ -342,8 +342,8 @@ class Shape(Polygon):
         """
         raise NotImplementedError("To be implemented.")
 
-    def seed_neurons(self, neurons=None, xmin=None, xmax=None, ymin=None,
-                     ymax=None, unit=None):
+    def seed_neurons(self, neurons=None, container=None, xmin=None, xmax=None,
+                     ymin=None, ymax=None, soma_radius=0, unit=None):
         '''
         Return the positions of the neurons inside the
         :class:`Shape`.
@@ -354,6 +354,11 @@ class Shape(Polygon):
             Number of neurons to seed. This argument is considered only if the
             :class:`Shape` has no `parent`, otherwise, a position is generated
             for each neuron in `parent`.
+        container : :class:`Shape`, optional (default: None)
+            Subshape acting like a mask, in which the neurons must be
+            contained. The resulting area where the neurons are generated is
+            the :func:`~shapely.Shape.intersection` between of the current
+            shape and the `container`.
         xmin : double, optional (default: lowest abscissa of the Shape)
             Limit the area where neurons will be seeded to the region on the
             right of `xmin`.
@@ -379,37 +384,51 @@ class Shape(Polygon):
             neurons = self._parent.node_nb()
         if neurons is None:
             raise ValueError("`neurons` cannot be None if `parent` is None.")
-        # set min/max
-        if xmin is None:
-            xmin = -np.inf
-        if ymin is None:
-            ymin = -np.inf
-        if xmax is None:
-            xmax = np.inf
-        if ymax is None:
-            ymax = np.inf
-        min_x, min_y, max_x, max_y = self.bounds
-        min_x = max(xmin, min_x)
-        min_y = max(ymin, min_y)
-        max_x = min(xmax, max_x)
-        max_y = min(ymax, max_y)
-        # remaining tests
-        if self._geom_type == "Rectangle":
-            xx = uniform(min_x, max_x, size=neurons)
-            yy = uniform(min_y, max_y, size=neurons)
-            positions = np.vstack((xx, yy)).T
-        elif (self._geom_type == "Disk"
-              and (xmin, ymin, xmax, ymax) == self.bounds):
-            theta = uniform(0, 2*np.pi, size=neurons)
-            # take some precaution to stay inside the shape
-            r = self.radius*np.sqrt(uniform(0, 0.99, size=neurons))
-            positions = np.vstack(
-                (r*np.cos(theta) + self.centroid[0],
-                 r*np.sin(theta) + self.centroid[1])).T
+
+        custom_shape = False
+        if container is None:
+            # set min/max
+            if xmin is None:
+                xmin = -np.inf
+            if ymin is None:
+                ymin = -np.inf
+            if xmax is None:
+                xmax = np.inf
+            if ymax is None:
+                ymax = np.inf
+            min_x, min_y, max_x, max_y = self.bounds
+            min_x = max(xmin, min_x)
+            min_y = max(ymin, min_y)
+            max_x = min(xmax, max_x)
+            max_y = min(ymax, max_y)
+            # remaining tests
+            if self._geom_type == "Rectangle":
+                xx = uniform(
+                    min_x + soma_radius, max_x - soma_radius, size=neurons)
+                yy = uniform(
+                    min_y + soma_radius, max_y - soma_radius, size=neurons)
+                positions = np.vstack((xx, yy)).T
+            elif (self._geom_type == "Disk"
+                  and (xmin, ymin, xmax, ymax) == self.bounds):
+                theta = uniform(0, 2*np.pi, size=neurons)
+                # take some precaution to stay inside the shape
+                r = (self.radius - soma_radius) *\
+                    np.sqrt(uniform(0, 0.99, size=neurons))
+                positions = np.vstack(
+                    (r*np.cos(theta) + self.centroid[0],
+                     r*np.sin(theta) + self.centroid[1])).T
+            else:
+                custom_shape = True
+                container = Polygon([(min_x, min_y), (min_x, max_y),
+                                     (max_x, max_y), (max_x, min_y)])
         else:
-            rect = Polygon([(min_x, min_y), (min_x, max_y), (max_x, max_y),
-                            (max_x, min_y)])
-            seed_area = self.intersection(rect)
+            custom_shape = True
+        # enter here only if Polygon or `container` is not None
+        if custom_shape:
+            seed_area = self.intersection(container)
+            seed_area = Shape.from_polygon(
+                seed_area.buffer(-soma_radius), min_x=min_x+soma_radius,
+                max_x=max_x-soma_radius)
             if not isinstance(seed_area, Polygon):
                 raise ValueError("Invalid boundary value for seed region; "
                                  "check that the min/max values you requested "
