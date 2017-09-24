@@ -121,7 +121,7 @@ except ImportError as e:
 # ---------------------- #
 
 def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
-                     parent=None, interpolate_curve=50):
+                      parent=None, interpolate_curve=50):
     '''
     Generate a culture from an SVG or DXF file.
 
@@ -214,4 +214,5 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
             path[:, 1] -= y_center
 
     culture = Shape(exterior, interiors, unit=unit, parent=parent)
+    culture = Shape.from_polygon(culture.buffer(0), min_x=min_x, max_x=max_x)
     return culture
