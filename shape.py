@@ -330,7 +330,7 @@ class Shape(Polygon):
         '''
         return deepcopy(self._areas)
 
-    def add_area(area, name=None, properties=None):
+    def add_area(area, height=None, name=None, properties=None):
         '''
         Add a new area to the :class:`Shape`.
 
@@ -349,9 +349,26 @@ class Shape(Polygon):
         name = "area{}".format(len(self._areas)) if name is None else name
         # check whether this area intersects with existing areas other than
         # the default area.
-        for key, area in self._areas.items():
+        intersection = self.intersection(area)
+        for key, existing_area in self._areas.items():
             if key != "default_area":
-                pass
+                assert not intersection.overlaps(existing_area), "Areas of " +\
+                    "a given Shape should not overlap."
+        # check properties
+        if height is None:
+            if isinstance(area, Area):
+                height = area.height
+            else:
+                height = 0.
+        if properties is None:
+            if isinstance(area, Area):
+                properties = area.properties
+            else:
+                properties = {}
+        # create the area
+        new_area = Area.from_shape(
+            intersection, height=height, name=name, properties=properties)
+        self._areas[name] = new_area
 
     def add_subshape(self, subshape, position, unit='um'):
         """

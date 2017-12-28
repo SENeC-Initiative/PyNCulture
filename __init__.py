@@ -100,7 +100,9 @@ try:
     __all__.extend(svgtools.__all__)
     _svg_support = True
 except ImportError as e:
-    _log_message(_logger, "INFO", "Could not import svgtools: {}".format(e))
+    _log_message(
+        _logger, "INFO", "SVG import disabled: {}\n".format(e) +\
+                         "Install 'svg.path' to use it.")
 
 try:
     from . import dxftools
@@ -108,7 +110,8 @@ try:
     __all__.extend(dxftools.__all__)
     _dxf_support = True
 except ImportError as e:
-    _log_message(_logger, "INFO", "Could not import dxftools: {}".format(e))
+    _log_message(_logger, "INFO", "DFX import disabled: {}\n".format(e) +\
+                                  "Install 'dxfgrabber' to use it.")
 
 try:
     from .plot import plot_shape
