@@ -18,12 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
 Shape implementation using the
 `shapely <http://toblerity.org/shapely/index.html>`_ library.
-'''
+"""
 
 import weakref
+from copy import deepcopy
 
 import shapely
 from shapely.wkt import loads
@@ -36,7 +37,7 @@ from numpy.random import uniform
 from .geom_utils import conversion_magnitude
 
 
-__all__ = ["Shape"]
+__all__ = ["Area", "Shape"]
 
 
 class Shape(Polygon):
@@ -302,9 +303,12 @@ class Shape(Polygon):
         parent : :class:`nngt.Graph` or subclass
             The graph which is associated to this Shape.
         '''
-        self._parent = weakref.proxy(parent) if parent is not None else None
-        self._unit = unit
+        self._parent    = weakref.proxy(parent) if parent is not None else None
+        self._unit      = unit
         self._geom_type = 'Polygon'
+        self._areas     = {
+            "default_area": Area.from_shape(self, name="default_area")
+        }
         super(Shape, self).__init__(shell, holes=holes)
 
     @property
@@ -319,9 +323,35 @@ class Shape(Polygon):
         '''
         return self._unit
 
-    def set_parent(self, parent):
-        ''' Set the parent :class:`nngt.Graph`. '''
-        self._parent = weakref.proxy(parent) if parent is not None else None
+    @property
+    def areas(self):
+        '''
+        Returns the dictionary containing the Shape's areas.
+        '''
+        return deepcopy(self._areas)
+
+    def add_area(area, name=None, properties=None):
+        '''
+        Add a new area to the :class:`Shape`.
+
+        Parameters
+        ----------
+        area : :class:`Area` or :class:`Shape`, or :class:`shapely.Polygon`.
+            Delimitation of the area. Only the intersection between the parent
+            :class:`Shape` and this new area will be kept.
+        name : str, optional, default ("areaX" where X is the number of areas)
+            Name of the area, under which it can be retrieved using the
+            :func:`Shape.area` property of the :class:`Shape` object.
+        properties : dict, optional (default: None)
+            Properties of the area. If `area` is a :class:`Area`, then this is
+            not necessary.
+        '''
+        name = "area{}".format(len(self._areas)) if name is None else name
+        # check whether this area intersects with existing areas other than
+        # the default area.
+        for key, area in self._areas.items():
+            if key != "default_area":
+                pass
 
     def add_subshape(self, subshape, position, unit='um'):
         """
@@ -341,6 +371,10 @@ class Shape(Polygon):
         None
         """
         raise NotImplementedError("To be implemented.")
+
+    def set_parent(self, parent):
+        ''' Set the parent :class:`nngt.Graph`. '''
+        self._parent = weakref.proxy(parent) if parent is not None else None
 
     def seed_neurons(self, neurons=None, container=None, xmin=None, xmax=None,
                      ymin=None, ymax=None, soma_radius=0, unit=None):
@@ -448,3 +482,100 @@ class Shape(Polygon):
             positions *= conversion_magnitude(unit, self._unit)
 
         return positions
+
+
+class Area(Shape):
+    """
+    Specialized :class:`Shape` that stores additional properties regarding the
+    interactions with the neurons.
+
+    Each Area is characteristic of a given substrate and height. These two
+    properties are homogeneous over the whole area, meaning that the neurons
+    interact in the same manner with an Area reagardless of their position
+    inside.
+
+    The substrate is described through its modulation of the neuronal
+    properties compared to their default behavior.
+    Thus, a given area will modulate the speed, wall affinity, etc, of the
+    growth cones that are growing above it.
+    """
+
+    @classmethod
+    def from_shape(cls, shape, height=0., name="area", properties=None):
+        '''
+        Create an :class:`Area` from a :class:`Shape` object.
+
+        Parameters
+        ----------
+        shape : 
+        '''
+        obj = Shape.from_polygon(shape)
+        obj.__class__ = Area
+        obj.height    = height
+        obj.name      = name
+        obj._prop     = _PDict(
+            {} if properties is None else deepcopy(properties))
+        
+
+    def __init__(self, shell, holes=None, unit='um', height=0.,
+                 name="area", properties=None):
+        '''
+        Initialize the :class:`Shape` object and the underlying
+        :class:`shapely.geometry.Polygon`.
+
+        Parameters
+        ----------
+        shell : array-like object of shape (N, 2)
+            List of points defining the external border of the shape.
+        holes : array-like, optional (default: None)
+            List of array-like objects of shape (M, 2), defining empty regions
+            inside the shape.
+        unit : string (default: 'um')
+            Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
+            'dm', 'm'.
+        height : float, optional (default: 0.)
+            Height of the area.
+        name : str, optional (default: "area")
+            The name of the area.
+        properties : dict, optional (default: default neuronal properties)
+            Dictionary containing the list of the neuronal properties that
+            are modified by the substrate. Since this describes how the default
+            property is modulated, all values must be positive reals or NaN.
+        '''
+        super(Area, self).__init__(shell, holes=holes, unit=unit, parent=None)
+        self.height = height
+        self.name   = name
+        self._prop  = _PDict(
+            {} if properties is None else deepcopy(properties))
+
+    @property
+    def areas(self):
+        raise AttributeError("Areas do not have sub-Areas.")
+
+    @property
+    def properties(self):
+        return self._prop
+
+    def add_subshape(self, subshape, position, unit='um'):
+        raise NotImplementedError("Areas cannot be modified.")
+
+
+class _PDict(dict):
+    """
+    Modified dictionary storing the modulation of the properties of an
+    :class:`Area`.
+    """
+
+    def __getitem__(self, key):
+        '''
+        Returns 1 if key is not present.
+        '''
+        return super(_PDict, self).__getitem__(key) if key in self else 1.
+
+    def __setitem__(self, key, value):
+        '''
+        Check that the value is a positive real or NaN before setting it.
+        '''
+        assert value >= 0 or np.isnan(value), "The property must be a " +\
+                                              "positive real or NaN."
+        super(_PDict, self).__setitem__(key, value)

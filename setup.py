@@ -31,7 +31,6 @@ move = (
 
 
 for fname in move:
-    print('moving ' + fname + ' to ' + directory + fname)
     os.rename(fname, directory + fname)
 
 
@@ -40,7 +39,8 @@ try:
     setup(
         name = 'PyNCulture',
         version = '0.2.0',
-        description = 'Python module to describe neuronal cultures as complex shapes.',
+        description = 'Python module to describe neuronal cultures as '+\
+                      ' complex shapes.',
         package_dir = {'': '.'},
         packages = find_packages('.'),
 

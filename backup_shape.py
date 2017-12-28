@@ -200,20 +200,26 @@ class BackupShape:
         return ellipse
 
     def __init__(self, unit='um', parent=None):
-        self._parent = weakref.proxy(parent) if parent is not None else None
-        self.exterior = _Path(self)
+        self._parent   = weakref.proxy(parent) if parent is not None else None
+        self.exterior  = _Path(self)
         self.interiors = []
-        self._unit = unit
-        self._points = None
-        self._bounds = None
-        self._area = None
-        self._com = None
+        self._unit     = unit
+        self._points      = None
+        self._bounds      = None
+        self._area        = None
+        self._com         = None
         self._convex_hull = None
 
     @property
     def area(self):
         ''' Area of the shape. '''
         return self._area
+
+    @property
+    def areas(self):
+        raise NotImplementedError("Backup Shape class has no Areas; use the "
+                                  "shapely implementation to get more "
+                                  "advanced functionalities.")
 
     @property
     def bounds(self):
