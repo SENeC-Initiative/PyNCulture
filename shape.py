@@ -34,6 +34,7 @@ from shapely.geometry import Point, Polygon
 import numpy as np
 from numpy.random import uniform
 
+import PyNCulture as pnc
 from .geom_utils import conversion_magnitude
 
 
@@ -60,10 +61,12 @@ class Shape(Polygon):
     """
 
     @staticmethod
-    def from_svg(filename, min_x=-5000., max_x=5000., unit='um', parent=None,
-                 nterpolate_curve=50):
+    def from_file(filename, min_x=-5000., max_x=5000., unit='um', parent=None,
+                  interpolate_curve=50, default_properties=None):
         '''
-        Create a shape from an SVG file.
+        Create a shape from a DXF, an SVG, or a WTK/WKB file.
+
+        .. versionadded:: 0.3
 
         Parameters
         ----------
@@ -83,52 +86,17 @@ class Shape(Polygon):
             The parent which will become a :class:`nngt.SpatialGraph`.
         interpolate_curve : int, optional (default: 50)
             Number of points that should be used to interpolate a curve.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
         '''
-        try:
-            from .svgtools import culture_from_svg
-            return culture_from_svg(
+        return pnc.culture_from_file(
                 filename,  min_x=min_x, max_x=max_x, unit=unit, parent=parent,
-                interpolate_curve=interpolate_curve)
-        except ImportError:
-            raise ImportError("Install 'svg.path' to use this feature.")
-
-    @staticmethod
-    def from_dxf(filename, min_x=-5000., max_x=5000., unit='um', parent=None,
-                 nterpolate_curve=50):
-        '''
-        Create a shape from an SVG file.
-
-        Parameters
-        ----------
-        filename : str
-            Path to the file that should be loaded.
-        min_x : float, optional (default: -5000.)
-            Absolute horizontal position of the leftmost point in the
-            environment in `unit` (default: 'um'). If None, no rescaling
-            occurs.
-        max_x : float, optional (default: 5000.)
-            Absolute horizontal position of the rightmost point in the
-            environment in `unit`. If None, no rescaling occurs.
-        unit : string (default: 'um')
-            Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
-            'dm', 'm'.
-        parent : :class:`nngt.Graph` object
-            The parent which will become a :class:`nngt.SpatialGraph`.
-        interpolate_curve : int, optional (default: 50)
-            Number of points that should be used to interpolate a curve.
-        '''
-        try:
-            from .dxftools import culture_from_dxf
-            return culture_from_dxf(
-                filename,  min_x=min_x, max_x=max_x, unit=unit, parent=parent,
-                interpolate_curve=interpolate_curve)
-        except ImportError:
-            raise ImportError("Install 'dxfgrabber' to use this feature.")
-
+                interpolate_curve=interpolate_curve,
+                default_properties=default_properties)
 
     @classmethod
     def from_polygon(cls, polygon, min_x=-5000., max_x=5000., unit='um',
-                     parent=None):
+                     parent=None, default_properties=None):
         '''
         Create a shape from a :class:`shapely.geometry.Polygon`.
 
@@ -147,6 +115,8 @@ class Shape(Polygon):
             'dm', 'm'
         parent : :class:`nngt.Graph` object
             The parent which will become a :class:`nngt.SpatialGraph`.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
         '''
         assert isinstance(polygon, Polygon), "Expected a Polygon object."
         # find the scaling factor
@@ -162,10 +132,15 @@ class Shape(Polygon):
         p2._parent = parent
         p2._unit = unit
         p2._geom_type = 'Polygon'
+        p2._areas = {
+            "default_area": Area.from_shape(p2, name="default_area",
+                                            properties=default_properties)
+        }
         return p2
 
     @classmethod
-    def from_wtk(cls, wtk, min_x=-5000., max_x=5000., unit='um', parent=None):
+    def from_wtk(cls, wtk, min_x=-5000., max_x=5000., unit='um', parent=None,
+                 default_properties=None):
         '''
         Create a shape from a WTK string.
 
@@ -175,6 +150,19 @@ class Shape(Polygon):
         ----------
         wtk : str
             The WTK string.
+        min_x : float, optional (default: -5000.)
+            Absolute horizontal position of the leftmost point in the
+            environment in `unit` If None, no rescaling occurs.
+        max_x : float, optional (default: 5000.)
+            Absolute horizontal position of the rightmost point in the
+            environment in `unit` If None, no rescaling occurs.
+        unit : string (default: 'um')
+            Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
+            'dm', 'm'
+        parent : :class:`nngt.Graph` object
+            The parent which will become a :class:`nngt.SpatialGraph`.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
 
         See also
         --------
@@ -182,11 +170,12 @@ class Shape(Polygon):
         '''
         p = loads(wtk)
         return cls.from_polygon(
-            p, min_x=min_x, max_x=max_x, unit=unit, parent=parent)
+            p, min_x=min_x, max_x=max_x, unit=unit, parent=parent,
+            default_properties=default_properties)
 
     @classmethod
     def rectangle(cls, height, width, centroid=(0., 0.), unit='um',
-                  parent=None):
+                  parent=None, default_properties=None):
         '''
         Generate a rectangle of given height, width and center of mass.
 
@@ -203,6 +192,8 @@ class Shape(Polygon):
             'dm', 'm'
         parent : :class:`nngt.Graph` or subclass, optional (default: None)
             The parent container.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
 
         Returns
         -------
@@ -216,12 +207,14 @@ class Shape(Polygon):
                   centroid + [half_w, -half_h],
                   centroid - [half_w, half_h],
                   centroid - [half_w, -half_h]]
-        shape = cls(points, unit=unit, parent=parent)
+        shape = cls(points, unit=unit, parent=parent,
+                    default_properties=default_properties)
         shape._geom_type = "Rectangle"
         return shape
 
     @classmethod
-    def disk(cls, radius, centroid=(0.,0.), unit='um', parent=None):
+    def disk(cls, radius, centroid=(0.,0.), unit='um', parent=None,
+             default_properties=None):
         '''
         Generate a disk of given radius and center (`centroid`).
 
@@ -236,6 +229,8 @@ class Shape(Polygon):
             'dm', 'm'
         parent : :class:`nngt.Graph` or subclass, optional (default: None)
             The parent container.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
 
         Returns
         -------
@@ -247,13 +242,14 @@ class Shape(Polygon):
         maxx = centroid[0] + radius
         disk = cls.from_polygon(
             Point(centroid).buffer(radius), min_x=minx, max_x=maxx, unit=unit,
-            parent=parent)
+            parent=parent, default_properties=default_properties)
         disk._geom_type = "Disk"
         disk.radius = radius
         return disk
 
     @classmethod
-    def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None):
+    def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None,
+                default_properties=None):
         '''
         Generate a disk of given radius and center (`centroid`).
 
@@ -268,6 +264,8 @@ class Shape(Polygon):
             'dm', 'm'
         parent : :class:`nngt.Graph` or subclass, optional (default: None)
             The parent container.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
 
         Returns
         -------
@@ -280,12 +278,13 @@ class Shape(Polygon):
         maxx = centroid[0] + rx
         ellipse = cls.from_polygon(
             scale(Point(centroid).buffer(1.), rx, ry), min_x=minx, max_x=maxx,
-            unit=unit, parent=parent)
+            unit=unit, parent=parent, default_properties=default_properties)
         ellipse._geom_type = "Ellipse"
         ellipse.radii = radii
         return ellipse
 
-    def __init__(self, shell, holes=None, unit='um', parent=None):
+    def __init__(self, shell, holes=None, unit='um', parent=None,
+                 default_properties=None):
         '''
         Initialize the :class:`Shape` object and the underlying
         :class:`shapely.geometry.Polygon`.
@@ -302,12 +301,18 @@ class Shape(Polygon):
             'dm', 'm'.
         parent : :class:`nngt.Graph` or subclass
             The graph which is associated to this Shape.
+        default_properties : dict, optional (default: None)
+            Default properties of the environment.
         '''
         self._parent    = weakref.proxy(parent) if parent is not None else None
         self._unit      = unit
         self._geom_type = 'Polygon'
+        # create the default area
+        tmp = Polygon(shell, holes=holes)
         self._areas     = {
-            "default_area": Area.from_shape(self, name="default_area")
+            "default_area": Area.from_shape(
+                tmp, name="default_area", properties=default_properties,
+                unit=unit)
         }
         super(Shape, self).__init__(shell, holes=holes)
 
@@ -369,6 +374,12 @@ class Shape(Polygon):
         new_area = Area.from_shape(
             intersection, height=height, name=name, properties=properties)
         self._areas[name] = new_area
+        # update the default area
+        default_area = self._areas["default_area"]
+        new_default = default_area.difference(new_area)
+        self._areas["default_area"] = Area.from_shape(
+            new_default, height=default_area.height, name="default_area",
+            properties=default_area.properties)
 
     def add_subshape(self, subshape, position, unit='um'):
         """
@@ -518,7 +529,8 @@ class Area(Shape):
     """
 
     @classmethod
-    def from_shape(cls, shape, height=0., name="area", properties=None):
+    def from_shape(cls, shape, height=0., name="area", properties=None,
+                   unit='um', min_x=None, max_x=None):
         '''
         Create an :class:`Area` from a :class:`Shape` object.
 
@@ -526,13 +538,25 @@ class Area(Shape):
         ----------
         shape : 
         '''
-        obj = Shape.from_polygon(shape)
+        assert isinstance(shape, Polygon), "Expected a Polygon object."
+        # find the scaling factor
+        scaling = 1.
+        if None not in (min_x, max_x):
+            ext = np.array(shape.exterior.coords)
+            leftmost = np.min(ext[:, 0])
+            rightmost = np.max(ext[:, 0])
+            scaling = (max_x - min_x) / (rightmost - leftmost)
+        # create the newly scaled shape and convert it to Shape
+        obj = scale(shape, scaling, scaling)
+        obj.__class__ = cls
+        obj._parent = None
+        obj._unit = unit
+        obj._geom_type = 'Polygon'
         obj.__class__ = Area
         obj.height    = height
         obj.name      = name
         obj._prop     = _PDict(
             {} if properties is None else deepcopy(properties))
-        
 
     def __init__(self, shell, holes=None, unit='um', height=0.,
                  name="area", properties=None):
