@@ -32,7 +32,7 @@ from matplotlib.path import Path
 
 
 def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
-               ec="#444444", alpha=0.5, **kwargs):
+               ec="#444444", alpha=0.5, show=True, **kwargs):
     '''
     Plot a shape (set the `axis` aspect to 1 to respect the proportions).
 
@@ -55,8 +55,8 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         Opacity of the shape's interior.
     kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
     '''
+    import matplotlib.pyplot as plt
     if axis is None:
-        import matplotlib.pyplot as plt
         fig, axis = plt.subplots()
     _plot_coords(axis, shape.exterior, m, mc, ec)
     for path in shape.interiors:
@@ -64,6 +64,8 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
     patch = _make_patch(shape, color=fc, alpha=alpha, zorder=0, **kwargs)
     axis.add_patch(patch)
     axis.set_aspect(1)
+    if show:
+        plt.show()
 
 
 def _make_patch(shape, **kwargs):

@@ -67,7 +67,7 @@ try:
     from shapely import speedups
     if speedups.available:
         speedups.enable()
-    from .shape import Shape
+    from .shape import Shape, Area
     _shapely_support = True
 except ImportError:
     from .backup_shape import BackupShape as Shape
@@ -100,7 +100,9 @@ try:
     __all__.extend(svgtools.__all__)
     _svg_support = True
 except ImportError as e:
-    _log_message(_logger, "INFO", "Could not import svgtools: {}".format(e))
+    _log_message(
+        _logger, "INFO", "SVG import disabled: {}\n".format(e) +\
+                         "Install 'svg.path' to use it.")
 
 try:
     from . import dxftools
@@ -108,7 +110,8 @@ try:
     __all__.extend(dxftools.__all__)
     _dxf_support = True
 except ImportError as e:
-    _log_message(_logger, "INFO", "Could not import dxftools: {}".format(e))
+    _log_message(_logger, "INFO", "DFX import disabled: {}\n".format(e) +\
+                                  "Install 'dxfgrabber' to use it.")
 
 try:
     from .plot import plot_shape
@@ -122,9 +125,10 @@ except ImportError as e:
 # ---------------------- #
 
 def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
-                      parent=None, interpolate_curve=50):
+                      parent=None, interpolate_curve=50,
+                      default_properties=None):
     '''
-    Generate a culture from an SVG or DXF file.
+    Generate a culture from an SVG, a DXF, or a WKT/WKB file.
 
     Valid file needs to contain only closed objects among:
     rectangles, circles, ellipses, polygons, and closed curves.
@@ -133,7 +137,7 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
     Parameters
     ----------
     filename : str
-        Path to the SVG or DXF file.
+        Path to the SVG, DXF, or WKT/WKB file.
     min_x : float, optional (default: -5000.)
         Position of the leftmost coordinate of the shape's exterior, in `unit`.
     max_x : float, optional (default: 5000.)
@@ -163,9 +167,23 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
         shapes, points = dxftools.shapes_from_dxf(
             filename, parent=parent, interpolate_curve=interpolate_curve,
             return_points=True)
+    elif filename.endswith(".wkt") and _shapely_support:
+        from shapely.wkt import loads
+        content = ""
+        with open(filename, 'r') as f:
+            content = "".join([l for l in f])
+        shapes = [loads(content)]
+        points = {'path': [np.array(shapes[0].exterior.coords)]}
+    elif filename.endswith(".wkb") and _shapely_support:
+        from shapely.wkb import loads
+        content = ""
+        with open(filename, 'r') as f:
+            content = "".join([l for l in f])
+        shapes = [loads(content)]
+        points = {'path': [np.array(shapes[0].exterior.coords)]}
     else:
         raise ImportError("You do not have support to load '" + filename + \
-                          "', please install either 'svg.path' or "
+                          "', please install either 'shapely', 'svg.path' or "
                           "'dxfgrabber' to enable it.")
     idx_main_container = 0
     idx_local = 0
@@ -216,5 +234,6 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
 
     culture = Shape(exterior, interiors, unit=unit, parent=parent)
     culture = Shape.from_polygon(culture.buffer(0), min_x=min_x, max_x=max_x,
-                                 unit=unit, parent=parent)
+                                 unit=unit, parent=parent,
+                                 default_properties=default_properties)
     return culture
