@@ -225,10 +225,13 @@ def shapes_from_file(filename, min_x=-5000., max_x=5000., unit='um',
         # define affine transformation (xx, xy, yx, yy, xoffset, yoffset)
         aff_trans = [scale_factor, 0, 0, scale_factor, x_shift, 0]
         p_new     = affine_transform(p.buffer(0), aff_trans)
+        print(p.area, p.simplify(0.01).area)
+        # check for circle
+        if p_new.area == 0:
+            p_new = affine_transform(p.simplify(0.01), aff_trans)
         x_min, _, x_max, _ = p_new.bounds
-        # store new shape
         shapes.append(
-            Shape.from_polygon(p_new, min_x=x_min, max_x=x_min, unit=unit))
+            Shape.from_polygon(p_new, min_x=x_min, max_x=x_max, unit=unit))
 
     return shapes
 

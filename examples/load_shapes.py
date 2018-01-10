@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import PyNCulture as nc
 
 
-''' Choose a file '''
+''' Choose a file and get the shapes '''
 shapes_file = "areas.svg"
 
 shapes = None

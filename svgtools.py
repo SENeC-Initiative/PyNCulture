@@ -23,7 +23,7 @@ from svg.path import parse_path, CubicBezier, QuadraticBezier, Arc
 from itertools import chain
 
 import shapely
-from shapely.affinity import scale
+from shapely.affinity import scale, affine_transform, translate
 from shapely.geometry import Point, Polygon
 
 import numpy as np
@@ -63,21 +63,18 @@ def polygons_from_svg(filename, interpolate_curve=50, parent=None,
         _build_struct(svg, elt_structs[elt_type], elt_type, elt_prop)
 
     # build all shapes
-    shapes = []
+    polygons = []
     for elt_type, instructions in elt_structs.items():
         for struct in instructions:
-            polygon, points = _make_shape(
+            polygon, points = _make_polygon(
                 elt_type, struct, parent=parent, return_points=True)
-            shapes.append(polygon)
-            # ~ import matplotlib.pyplot as plt
-            # ~ plt.scatter(points[:, 0], points[:, 1])
-            # ~ plt.show()
+            polygons.append(polygon)
             elt_points[elt_type].append(points)
 
     if return_points:
-        return shapes, elt_points
+        return polygons, elt_points
 
-    return shapes
+    return polygons
 
 
 # ----- #
@@ -85,31 +82,54 @@ def polygons_from_svg(filename, interpolate_curve=50, parent=None,
 # ----- #
 
 def _build_struct(svg, container, elt_type, elt_properties):
+    global_translate = None
+    root             = svg.documentElement
+
+    if root.hasAttribute("transform"):
+        trans = root.getAttribute('transform')
+        if trans.startswith("translate"):
+            start = trans.find("(") + 1
+            stop  = trans.find(")")
+            global_translate = [float(f) for f in trans[start:stop].split(",")]
+        else:
+            raise RuntimeError("Uknown transform: " + trans)
+
     for elt in svg.getElementsByTagName(elt_type):
         if elt_type == 'path':
             #~ for s in elt.getAttribute('d').split('z'):
                 #~ if s:
                     #~ container.append(s.lstrip() + 'z')
-            container.append(elt.getAttribute('d'))
+            path, trans = elt.getAttribute('d'), None
+            if elt.hasAttribute("transform"):
+                trans = elt.getAttribute('transform')
+                if trans.startswith("matrix"):
+                    start = trans.find("(") + 1
+                    stop  = trans.find(")")
+                    trans = [float(f) for f in trans[start:stop].split(",")]
+                else:
+                    raise RuntimeError("Uknown transform: " + trans)
+            container.append((path, trans))
         else:
             struct = {}
             for item in elt_properties:
                 struct[item] = float(elt.getAttribute(item))
+            if global_translate is not None:
+                struct["translate"] = global_translate
             container.append(struct)
 
 
-def _make_shape(elt_type, instructions, parent=None, interpolate_curve=50,
-                return_points=False):
+def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
+                  return_points=False):
     container = None
     shell = []  # outer points defining the polygon's outer shell
     holes = []  # inner points defining holes
 
     if elt_type == "path":  # build polygons from custom paths
-        path_data = parse_path(instructions)
-        num_data = len(path_data)
+        path_data = parse_path(instructions[0])
+        num_data  = len(path_data)
         if not path_data.closed:
             raise RuntimeError("Only closed shapes accepted.")
-        start = path_data[0].start
+        start  = path_data[0].start
         points = shell  # the first path is the outer shell?
         for j, item in enumerate(path_data):
             if isinstance(item, (Arc, CubicBezier, QuadraticBezier)):
@@ -118,27 +138,39 @@ def _make_shape(elt_type, instructions, parent=None, interpolate_curve=50,
                         (item.point(frac).real, -item.point(frac).imag))
             else:
                 points.append((item.start.real, -item.start.imag))
-            # if the shell is closed, the rest defines holes
+            # the shell is closed, so the rest defines holes
             if item.end == start and j < len(path_data) - 1:
                 holes.append([])
                 points = holes[-1]
                 start = path_data[j+1].start
-        container = Shape(shell, holes=holes)
-        shell = np.array(shell)
+        container = Polygon(shell, holes=holes)
+        if instructions[1] is not None:
+            trans     = instructions[1]
+            trans[-1] = -53.384887
+            container = affine_transform(container, trans)
+        shell = np.array(container.exterior.coords)
     elif elt_type == "ellipse":  # build ellipses
         circle = Point((instructions["cx"], -instructions["cy"])).buffer(1)
         rx, ry = instructions["rx"], instructions["ry"]
-        container = Shape.from_polygon(scale(circle, rx, ry), min_x=None)
-    elif elt_type == "circle":  # build circles
-        container = Shape.from_polygon(Point((instructions["cx"],
-            -instructions["cy"])).buffer(instructions["r"]), min_x=None)
-    elif elt_type == "rect":  # build rectangles
+        container = scale(circle, rx, ry)
+        if "translate" in instructions:
+            container = translate(container, *instructions["translate"])
+    elif elt_type == "circle":   # build circles
+        r = instructions["r"]
+        container = Point((instructions["cx"], -instructions["cy"])).buffer(r)
+        if "translate" in instructions:
+            container = translate(container, *instructions["translate"])
+    elif elt_type == "rect":     # build rectangles
         x, y = instructions["x"], -instructions["y"]
         w, h = instructions["width"], -instructions["height"]
         shell = np.array([(x, y), (x + w, y), (x + w, y + h), (x, y + h)])
-        container = Shape(shell)
+        container = Polygon(shell)
+        if "translate" in instructions:
+            container = translate(container, *instructions["translate"])
     else:
         raise RuntimeError("Unexpected element type: '{}'.".format(elt_type))
+
+    print(container.area, elt_type)
 
     if return_points:
         if len(shell) == 0:
