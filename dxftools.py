@@ -15,11 +15,11 @@ Shape generation from DXF files.
 '''
 
 
-__all__ = ["shapes_from_dxf"]
+__all__ = ["polygons_from_dxf"]
 
 
-def shapes_from_dxf(filename, interpolate_curve=50, parent=None,
-                    return_points=False):
+def polygons_from_dxf(filename, interpolate_curve=50, parent=None,
+                      return_points=False):
     '''
     Generate :class:`shapely.geometry.Polygon` objects from a DXF file.
     '''

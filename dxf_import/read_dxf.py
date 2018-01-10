@@ -67,7 +67,8 @@ class DXF:
     Class responsible for parsing DXF files
     '''
 
-    def __init__(self, filename, interpolate_curve=50, layers=None, ignore=None):
+    def __init__(self, filename, interpolate_curve=50, layers=None,
+                 ignore=None):
         """
         Reads a .dxf file
         

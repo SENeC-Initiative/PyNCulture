@@ -22,7 +22,7 @@
 
 import matplotlib.pyplot as plt
 
-import PyNCulture as pnc
+import PyNCulture as nc
 
 
 ''' Choose a file '''
@@ -30,36 +30,38 @@ culture_file = "culture_from_filled_polygons.svg"
 # culture_file = "culture_with_holes.svg"
 # culture_file = "culture.dxf"
 
-shapes = None
+polygons = None
 
 if culture_file.endswith(".dxf"):
-    shapes = pnc.shapes_from_dxf(culture_file)
+    polygons = nc.polygons_from_dxf(culture_file)
 else:
-    shapes = pnc.shapes_from_svg(culture_file)
+    polygons = nc.polygons_from_svg(culture_file)
 
-''' Plot the shapes '''
+''' Plot the polygons '''
 fig, ax = plt.subplots()
-plt.title("shapes")
+fig.suptitle("polygons")
 
-for shape in shapes:
-    pnc.plot_shape(shape, ax)
+for p in polygons:
+    nc.plot_shape(p, ax, show=False)
+
+plt.show()
 
 ''' Make a culture '''
 fig2, ax2 = plt.subplots()
 plt.title("culture")
 
-culture = pnc.culture_from_file(culture_file)
+culture = nc.culture_from_file(culture_file)
 
-pnc.plot_shape(culture, ax2)
+nc.plot_shape(culture, ax2)
 
 ''' Add neurons '''
 fig3, ax3 = plt.subplots()
 plt.title("culture with neurons")
 
-culture_bis = pnc.culture_from_file(culture_file)
+culture_bis = nc.culture_from_file(culture_file)
 pos = culture_bis.seed_neurons(neurons=1000, xmax=0)
 
-pnc.plot_shape(culture_bis, ax3)
+nc.plot_shape(culture_bis, ax3, show=False)
 ax3.scatter(pos[:, 0], pos[:, 1], s=2, zorder=3)
 
 plt.show()

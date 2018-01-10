@@ -36,7 +36,7 @@ Shape generation from SVG files.
 '''
 
 
-__all__ = ["shapes_from_svg"]
+__all__ = ["polygons_from_svg"]
 
 
 # predefined svg shapes and their parameters
@@ -49,8 +49,8 @@ _predefined = {
 }
 
 
-def shapes_from_svg(filename, interpolate_curve=50, parent=None,
-                    return_points=False):
+def polygons_from_svg(filename, interpolate_curve=50, parent=None,
+                      return_points=False):
     '''
     Generate :class:`shapely.geometry.Polygon` objects from an SVG file.
     '''
@@ -69,6 +69,9 @@ def shapes_from_svg(filename, interpolate_curve=50, parent=None,
             polygon, points = _make_shape(
                 elt_type, struct, parent=parent, return_points=True)
             shapes.append(polygon)
+            # ~ import matplotlib.pyplot as plt
+            # ~ plt.scatter(points[:, 0], points[:, 1])
+            # ~ plt.show()
             elt_points[elt_type].append(points)
 
     if return_points:

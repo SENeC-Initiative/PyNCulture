@@ -124,6 +124,115 @@ except ImportError as e:
 # Make culture from file #
 # ---------------------- #
 
+
+def shapes_from_file(filename, min_x=-5000., max_x=5000., unit='um',
+                     parent=None, interpolate_curve=50,
+                     default_properties=None):
+    '''
+    Generate a set of :class:`Shape` objects from an SVG, a DXF, or a WKT/WKB
+    file.
+
+    Valid file needs to contain only closed objects among:
+    rectangles, circles, ellipses, polygons, and closed curves.
+    The objects do not have to be simply connected.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the SVG, DXF, or WKT/WKB file.
+    min_x : float, optional (default: -5000.)
+        Position of the leftmost coordinate of the shape's exterior, in `unit`.
+    max_x : float, optional (default: 5000.)
+        Position of the rightmost coordinate of the shape's exterior, in
+        `unit`.
+    unit : str, optional (default: 'um')
+        Unit of the positions, among micrometers ('um'), milimeters ('mm'),
+        centimeters ('cm'), decimeters ('dm'), or meters ('m').
+    parent : :class:`nngt.Graph` or subclass, optional (default: None)
+        Assign a parent graph if working with NNGT.
+    interpolate_curve : int, optional (default: 50)
+        Number of points by which a curve should be interpolated into segments.
+
+    Returns
+    -------
+    culture : :class:`Shape` object
+        Shape, vertically centred around zero, such that
+        :math:`min(y) + max(y) = 0`.
+    '''
+    if not _shapely_support:
+        raise RuntimeError("This function requires 'shapely' to work.")
+
+    from shapely.affinity import affine_transform
+
+    polygons, points = None, None
+
+    if filename.endswith(".svg") and _svg_support:
+        polygons, points = svgtools.polygons_from_svg(
+            filename, parent=parent, interpolate_curve=interpolate_curve,
+            return_points=True)
+    elif filename.endswith(".dxf") and _dxf_support:
+        polygons, points = dxftools.polygons_from_dxf(
+            filename, parent=parent, interpolate_curve=interpolate_curve,
+            return_points=True)
+    elif filename.endswith(".wkt"):
+        from shapely.wkt import loads
+        content = ""
+        with open(filename, 'r') as f:
+            content = "".join([l for l in f])
+        polygons = [loads(content)]
+        points = {'path': [np.array(polygons[0].exterior.coords)]}
+    elif filename.endswith(".wkb"):
+        from shapely.wkb import loads
+        content = ""
+        with open(filename, 'r') as f:
+            content = "".join([l for l in f])
+        polygons = [loads(content)]
+        points = {'path': [np.array(polygons[0].exterior.coords)]}
+    else:
+        raise ImportError("You do not have support to load '" + filename + \
+                          "', please install either 'shapely', 'svg.path' or "
+                          "'dxfgrabber' to enable it.")
+
+    min_x_val = np.inf
+    max_x_val = -np.inf
+
+    # find smallest and highest x values
+    for elt_type, elements in points.items():
+        for i, elt_points in enumerate(elements):
+            min_x_tmp = elt_points[:, 0].min()
+            max_x_tmp = elt_points[:, 0].max()
+            if min_x_tmp < min_x_val:
+                min_x_val = min_x_tmp
+            if max_x_tmp > max_x_val:
+                max_x_val = max_x_tmp
+
+    # set optional shifts if center will change
+    x_center = 0.5*(max_x_val + min_x_val)
+    x_shift      = 0
+    scale_factor = 1
+    if None not in (min_x, max_x):
+        scale_factor = (max_x - min_x) / (max_x_val - min_x_val)
+        x_shift += max_x - (max_x_val - x_center) * scale_factor
+    elif min_x is not None:
+        x_shift += min_x - min_x_val
+    elif max_x is not None:
+        x_shift += max_x - max_x_val
+
+    shapes = []
+
+    # scale and shift the shapes
+    for p in polygons:
+        # define affine transformation (xx, xy, yx, yy, xoffset, yoffset)
+        aff_trans = [scale_factor, 0, 0, scale_factor, x_shift, 0]
+        p_new     = affine_transform(p.buffer(0), aff_trans)
+        x_min, _, x_max, _ = p_new.bounds
+        # store new shape
+        shapes.append(
+            Shape.from_polygon(p_new, min_x=x_min, max_x=x_min, unit=unit))
+
+    return shapes
+
+
 def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
                       parent=None, interpolate_curve=50,
                       default_properties=None):
@@ -157,14 +266,14 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
         Shape, vertically centred around zero, such that
         :math:`min(y) + max(y) = 0`.
     '''
-    shapes, points = None, None
+    polygons, points = None, None
 
     if filename.endswith(".svg") and _svg_support:
-        shapes, points = svgtools.shapes_from_svg(
+        polygons, points = svgtools.polygons_from_svg(
             filename, parent=parent, interpolate_curve=interpolate_curve,
             return_points=True)
     elif filename.endswith(".dxf") and _dxf_support:
-        shapes, points = dxftools.shapes_from_dxf(
+        polygons, points = dxftools.polygons_from_dxf(
             filename, parent=parent, interpolate_curve=interpolate_curve,
             return_points=True)
     elif filename.endswith(".wkt") and _shapely_support:
@@ -172,15 +281,15 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
         content = ""
         with open(filename, 'r') as f:
             content = "".join([l for l in f])
-        shapes = [loads(content)]
-        points = {'path': [np.array(shapes[0].exterior.coords)]}
+        polygons = [loads(content)]
+        points = {'path': [np.array(polygons[0].exterior.coords)]}
     elif filename.endswith(".wkb") and _shapely_support:
         from shapely.wkb import loads
         content = ""
         with open(filename, 'r') as f:
             content = "".join([l for l in f])
-        shapes = [loads(content)]
-        points = {'path': [np.array(shapes[0].exterior.coords)]}
+        polygons = [loads(content)]
+        points = {'path': [np.array(polygons[0].exterior.coords)]}
     else:
         raise ImportError("You do not have support to load '" + filename + \
                           "', please install either 'shapely', 'svg.path' or "
@@ -202,14 +311,14 @@ def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
                 type_main_container = elt_type
             count += 1
 
-    # make sure that the main container contains all other shapes
-    main_container = shapes.pop(idx_main_container)
+    # make sure that the main container contains all other polygons
+    main_container = polygons.pop(idx_main_container)
     exterior = points[type_main_container].pop(idx_local)
-    for shape in shapes:
-        assert main_container.contains(shape), "Some shapes are not " +\
+    for p in polygons:
+        assert main_container.contains(p), "Some polygons are not " +\
             "contained in the main container."
 
-    # all remaining shapes are considered as boundaries for the interior
+    # all remaining polygons are considered as boundaries for the interior
     interiors = [item.coords for item in main_container.interiors]
     for elements in points.values():
         for elt_points in elements:
