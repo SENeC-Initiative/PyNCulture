@@ -34,11 +34,14 @@ for fname in move:
     os.rename(fname, directory + fname)
 
 
+from PyNCulture import __version__
+
+
 try:
     # install
     setup(
         name = 'PyNCulture',
-        version = '0.2.0',
+        version = __version__,
         description = 'Python module to describe neuronal cultures as '+\
                       ' complex shapes.',
         package_dir = {'': '.'},

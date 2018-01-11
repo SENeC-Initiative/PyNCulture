@@ -21,18 +21,22 @@
 """ Loading shapes from an SVG file """
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 import PyNCulture as nc
 
 
 ''' Choose a file and get the shapes '''
+
 shapes_file = "areas.svg"
 
 shapes = None
 
 shapes = nc.shapes_from_file(shapes_file)
 
+
 ''' Plot the shapes '''
+
 fig, ax = plt.subplots()
 plt.title("shapes")
 
@@ -40,3 +44,24 @@ for shape in shapes:
     nc.plot_shape(shape, ax, show=False)
 
 plt.show()
+
+
+'''
+Create areas from these shapes.
+
+First find the largest (main container), then add the others as Area objects.
+'''
+
+main = nc.pop_largest(shapes)
+
+for i, s in enumerate(shapes):
+    main.add_area(s, height=30*(i+1), name=str(i))
+
+pos = main.areas["2"].seed_neurons(100)
+
+fig, ax = plt.subplots()
+nc.plot_shape(main, axis=ax, show=False)
+ax.scatter(pos[:, 0], pos[:, 1], s=2, zorder=3)
+
+plt.show()
+

@@ -170,8 +170,6 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
     else:
         raise RuntimeError("Unexpected element type: '{}'.".format(elt_type))
 
-    print(container.area, elt_type)
-
     if return_points:
         if len(shell) == 0:
             shell = np.array(container.exterior.coords)

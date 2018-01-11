@@ -30,18 +30,13 @@ culture_file = "culture_from_filled_polygons.svg"
 # culture_file = "culture_with_holes.svg"
 # culture_file = "culture.dxf"
 
-polygons = None
+shapes = nc.shapes_from_file(culture_file)
 
-if culture_file.endswith(".dxf"):
-    polygons = nc.polygons_from_dxf(culture_file)
-else:
-    polygons = nc.polygons_from_svg(culture_file)
-
-''' Plot the polygons '''
+''' Plot the shapes '''
 fig, ax = plt.subplots()
-fig.suptitle("polygons")
+fig.suptitle("shapes")
 
-for p in polygons:
+for p in shapes:
     nc.plot_shape(p, ax, show=False)
 
 plt.show()
