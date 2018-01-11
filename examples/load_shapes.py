@@ -18,25 +18,50 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-""" Examples for the backup shape """
+""" Loading shapes from an SVG file """
 
 import matplotlib.pyplot as plt
+import numpy as np
 
-import PyNCulture as pnc
+import PyNCulture as nc
 
+
+''' Choose a file and get the shapes '''
+
+shapes_file = "areas.svg"
+
+shapes = None
+
+shapes = nc.shapes_from_file(shapes_file)
+
+
+''' Plot the shapes '''
 
 fig, ax = plt.subplots()
+plt.title("shapes")
 
-''' Choose a shape (uncomment the desired line) '''
-# culture = pnc.Shape.rectangle(15, 20, (5, 0))
-culture = pnc.Shape.disk(20, (5, 0))
-# culture = pnc.Shape.ellipse((20, 5), (5, 0))
-
-''' Generate the neurons inside '''
-pos = culture.seed_neurons(neurons=1000, xmax=0., ymax=0.)
-
-''' Plot '''
-pnc.plot_shape(culture, ax, show=False)
-ax.scatter(pos[:, 0], pos[:, 1], s=2, zorder=2)
+for shape in shapes:
+    nc.plot_shape(shape, ax, show=False)
 
 plt.show()
+
+
+'''
+Create areas from these shapes.
+
+First find the largest (main container), then add the others as Area objects.
+'''
+
+main = nc.pop_largest(shapes)
+
+for i, s in enumerate(shapes):
+    main.add_area(s, height=30*(i+1), name=str(i))
+
+pos = main.areas["2"].seed_neurons(100)
+
+fig, ax = plt.subplots()
+nc.plot_shape(main, axis=ax, show=False)
+ax.scatter(pos[:, 0], pos[:, 1], s=2, zorder=3)
+
+plt.show()
+

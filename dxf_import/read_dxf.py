@@ -53,7 +53,8 @@ import numpy as np
 
 import dxfgrabber
 
-from ..shape import Shape
+from shapely.geometry import Polygon
+
 from . import homcoord
 
 
@@ -67,7 +68,8 @@ class DXF:
     Class responsible for parsing DXF files
     '''
 
-    def __init__(self, filename, interpolate_curve=50, layers=None, ignore=None):
+    def __init__(self, filename, interpolate_curve=50, layers=None,
+                 ignore=None):
         """
         Reads a .dxf file
         
@@ -163,13 +165,13 @@ class DXF:
                                           rayon * np.sin(angle))
                     pts_polygon.append((Pt1.x, Pt1.y))
 
-                shapes.append(Shape(pts_polygon))
+                shapes.append(Polygon(pts_polygon))
             elif e.dxftype == 'POLYLINE':
                 pts_polygon = []
                 for vertex in e.vertices:
                     point = homcoord.Pt(vertex.location[:2])
                     pts_polygon.append((point.x, point.y))
-                shapes.append(Shape(pts_polygon))
+                shapes.append(Polygon(pts_polygon))
             else:
                 logging.warning('Unknown entity %s in dxf shapes file' % e)
 

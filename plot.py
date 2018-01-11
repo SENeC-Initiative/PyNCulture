@@ -32,7 +32,8 @@ from matplotlib.path import Path
 
 
 def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
-               ec="#444444", alpha=0.5, show=True, **kwargs):
+               ec="#444444", alpha=0.5, brightness="height", show=True,
+               **kwargs):
     '''
     Plot a shape (set the `axis` aspect to 1 to respect the proportions).
 
@@ -53,17 +54,66 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         Color of the shape's edges.
     alpha : float, optional (default: 0.5)
         Opacity of the shape's interior.
+    brightness : str, optional (default: height)
+        Show how different other areas are from the 'default_area' (lower
+        values are darker, higher values are lighter).
+        Difference can concern the 'height', or any of the `properties` of the
+        :class:`Area` objects.
     kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
     '''
     import matplotlib.pyplot as plt
     if axis is None:
         fig, axis = plt.subplots()
+
+    # plot the main shape
     _plot_coords(axis, shape.exterior, m, mc, ec)
     for path in shape.interiors:
         _plot_coords(axis, path.coords, m, mc, ec)
     patch = _make_patch(shape, color=fc, alpha=alpha, zorder=0, **kwargs)
     axis.add_patch(patch)
+
+    # take care of the areas
+    if hasattr(shape, "areas"):
+        def_area = shape.areas["default_area"]
+        def get_prop(area):
+            is_height = brightness == "height"
+            return area.height if is_height else area.properties[brightness]
+
+        # get the highest and lowest properties
+        mean = get_prop(def_area)
+        low, high = np.inf, -np.inf
+
+        for name, area in shape.areas.items():
+            if name != "default_area":
+                prop = get_prop(area)
+                if prop < low:
+                    low = prop
+                if prop > high:
+                    high = prop
+
+        # plot the areas
+        for name, area in shape.areas.items():
+            if name != "default_area":
+                prop         = get_prop(area)
+                color        = fc
+                local_alpha  = 0
+                if prop < mean:
+                    color       = "black"
+                    local_alpha = alpha * (prop - mean) / (low - mean)
+                else:
+                    color       = "white"
+                    local_alpha = alpha * (prop - mean) / (high - mean)
+                # contour
+                _plot_coords(axis, area.exterior, m, mc, ec)
+                for path in shape.interiors:
+                    _plot_coords(axis, path.coords, m, mc, ec)
+                # content
+                patch = _make_patch(
+                    area, color=color, alpha=local_alpha, zorder=0, **kwargs)
+                axis.add_patch(patch)
+
     axis.set_aspect(1)
+
     if show:
         plt.show()
 

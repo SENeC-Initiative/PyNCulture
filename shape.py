@@ -29,13 +29,14 @@ from copy import deepcopy
 import shapely
 from shapely.wkt import loads
 from shapely.affinity import scale
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, MultiPolygon
 
 import numpy as np
 from numpy.random import uniform
 
 import PyNCulture as pnc
 from .geom_utils import conversion_magnitude
+from .tools import pop_largest
 
 
 __all__ = ["Area", "Shape"]
@@ -335,9 +336,12 @@ class Shape(Polygon):
         '''
         return deepcopy(self._areas)
 
-    def add_area(area, height=None, name=None, properties=None):
+    def add_area(self, area, height=None, name=None, properties=None):
         '''
         Add a new area to the :class:`Shape`.
+        If the new area has a part that is outside the main :class:`Shape`,
+        it will be cut and only the intersection between the area and the
+        container will be kept.
 
         Parameters
         ----------
@@ -352,19 +356,25 @@ class Shape(Polygon):
             not necessary.
         '''
         name = "area{}".format(len(self._areas)) if name is None else name
+        # check that area and self overlap
+        assert self.overlaps(area) or self.contains(area), "`area` must be " +\
+            "contained or at least overlap with the current shape."
         # check whether this area intersects with existing areas other than
         # the default area.
         intersection = self.intersection(area)
+        # take largest only if multi-polygon
+        if isinstance(intersection, MultiPolygon):
+            intersection = pop_largest(intersection)
         for key, existing_area in self._areas.items():
             if key != "default_area":
-                assert not intersection.overlaps(existing_area), "Areas of " +\
-                    "a given Shape should not overlap."
+                assert not intersection.overlaps(existing_area), \
+                    "Different areas of a given Shape should not overlap."
         # check properties
         if height is None:
             if isinstance(area, Area):
                 height = area.height
             else:
-                height = 0.
+                height = self.areas["default_area"].height
         if properties is None:
             if isinstance(area, Area):
                 properties = area.properties
@@ -377,6 +387,9 @@ class Shape(Polygon):
         # update the default area
         default_area = self._areas["default_area"]
         new_default = default_area.difference(new_area)
+        # take largest only if multi-polygon
+        if isinstance(new_default, MultiPolygon):
+            new_default = pop_largest(new_default)
         self._areas["default_area"] = Area.from_shape(
             new_default, height=default_area.height, name="default_area",
             properties=default_area.properties)
@@ -446,6 +459,8 @@ class Shape(Polygon):
             neurons = self._parent.node_nb()
         if neurons is None:
             raise ValueError("`neurons` cannot be None if `parent` is None.")
+        
+        min_x, min_y, max_x, max_y = self.bounds
 
         custom_shape = False
         if container is None:
@@ -458,11 +473,14 @@ class Shape(Polygon):
                 xmax = np.inf
             if ymax is None:
                 ymax = np.inf
-            min_x, min_y, max_x, max_y = self.bounds
-            min_x = max(xmin, min_x)
-            min_y = max(ymin, min_y)
-            max_x = min(xmax, max_x)
-            max_y = min(ymax, max_y)
+            min_x = max(xmin, min_x)  # smaller that Shape max x
+            assert min_x <= self.bounds[2], "`min_x` must be inside Shape."
+            min_y = max(ymin, min_y)  # smaller that Shape max y
+            assert min_y <= self.bounds[3], "`min_y` must be inside Shape."
+            max_x = min(xmax, max_x)  # larger that Shape min x
+            assert max_x >= self.bounds[0], "`max_x` must be inside Shape."
+            max_y = min(ymax, max_y)  # larger that Shape min y
+            assert max_y >= self.bounds[1], "`max_y` must be inside Shape."
             # remaining tests
             if self._geom_type == "Rectangle":
                 xx = uniform(
@@ -536,9 +554,20 @@ class Area(Shape):
 
         Parameters
         ----------
-        shape : 
+        shape : :class:`Shape`
+            Shape that should be converted to an Area.
+
+        Returns
+        -------
+        :class:`Area` object.
         '''
-        assert isinstance(shape, Polygon), "Expected a Polygon object."
+        g_type = None
+        if isinstance(shape, MultiPolygon):
+            g_type = "MultiPolygon"
+        elif isinstance(shape, Polygon):
+            g_type = "Polygon"
+        else:
+            raise TypeError("Expected a Polygon or MultiPolygon object.")
         # find the scaling factor
         scaling = 1.
         if None not in (min_x, max_x):
@@ -547,16 +576,16 @@ class Area(Shape):
             rightmost = np.max(ext[:, 0])
             scaling = (max_x - min_x) / (rightmost - leftmost)
         # create the newly scaled shape and convert it to Shape
-        obj = scale(shape, scaling, scaling)
-        obj.__class__ = cls
-        obj._parent = None
-        obj._unit = unit
-        obj._geom_type = 'Polygon'
-        obj.__class__ = Area
-        obj._area     = None
-        obj.height    = height
-        obj.name      = name
-        obj._prop     = _PDict(
+        obj            = scale(shape, scaling, scaling)
+        obj.__class__  = cls
+        obj._parent    = None
+        obj._unit      = unit
+        obj._geom_type = g_type
+        obj.__class__  = Area
+        obj._area      = None
+        obj.height     = height
+        obj.name       = name
+        obj._prop      = _PDict(
             {} if properties is None else deepcopy(properties))
         return obj
 

@@ -18,25 +18,40 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-""" Examples for the backup shape """
+""" Tools for PyNCulture """
 
-import matplotlib.pyplot as plt
+import numpy as np
 
-import PyNCulture as pnc
+from PyNCulture import _shapely_support
 
 
-fig, ax = plt.subplots()
+def pop_largest(shapes):
+    '''
+    Returns the largest shape, removing it from the list.
+    If `shapes` is a :class:`shapely.geometry.MultiPolygon`, returns the
+    largest :class:`shapely.geometry.Polygon` without modifying the object.
 
-''' Choose a shape (uncomment the desired line) '''
-# culture = pnc.Shape.rectangle(15, 20, (5, 0))
-culture = pnc.Shape.disk(20, (5, 0))
-# culture = pnc.Shape.ellipse((20, 5), (5, 0))
+    .. versionadded:: 0.3
 
-''' Generate the neurons inside '''
-pos = culture.seed_neurons(neurons=1000, xmax=0., ymax=0.)
+    Parameters
+    ----------
+    shapes : list of :class:`Shape` objects or MultiPolygon.
+    '''
+    MultiPolygon = None
+    try:
+        from shapely.geometry import MultiPolygon
+    except ImportError:
+        pass
 
-''' Plot '''
-pnc.plot_shape(culture, ax, show=False)
-ax.scatter(pos[:, 0], pos[:, 1], s=2, zorder=2)
+    max_area = -np.inf
+    max_idx  = -1
 
-plt.show()
+    for i, s in enumerate(shapes):
+        if s.area > max_area:
+            max_area = s.area
+            max_idx  = i
+
+    if shapes.__class__ == MultiPolygon:
+        return shapes[max_idx]
+
+    return shapes.pop(max_idx)
