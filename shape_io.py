@@ -61,7 +61,7 @@ except ImportError as e:
 # Load from file #
 # -------------- #
 
-def shapes_from_file(filename, min_x=-5000., max_x=5000., unit='um',
+def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
                      parent=None, interpolate_curve=50,
                      default_properties=None, **kwargs):
     '''
@@ -183,7 +183,7 @@ def shapes_from_file(filename, min_x=-5000., max_x=5000., unit='um',
     return shapes
 
 
-def culture_from_file(filename, min_x=-5000., max_x=5000., unit='um',
+def culture_from_file(filename, min_x=None, max_x=None, unit='um',
                       parent=None, interpolate_curve=50,
                       default_properties=None):
     '''

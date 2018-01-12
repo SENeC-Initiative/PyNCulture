@@ -62,7 +62,7 @@ class Shape(Polygon):
     """
 
     @staticmethod
-    def from_file(filename, min_x=-5000., max_x=5000., unit='um', parent=None,
+    def from_file(filename, min_x=None, max_x=None, unit='um', parent=None,
                   interpolate_curve=50, default_properties=None):
         '''
         Create a shape from a DXF, an SVG, or a WTK/WKB file.
@@ -96,7 +96,7 @@ class Shape(Polygon):
                 default_properties=default_properties)
 
     @classmethod
-    def from_polygon(cls, polygon, min_x=-5000., max_x=5000., unit='um',
+    def from_polygon(cls, polygon, min_x=None, max_x=None, unit='um',
                      parent=None, default_properties=None):
         '''
         Create a shape from a :class:`shapely.geometry.Polygon`.
@@ -140,7 +140,7 @@ class Shape(Polygon):
         return p2
 
     @classmethod
-    def from_wtk(cls, wtk, min_x=-5000., max_x=5000., unit='um', parent=None,
+    def from_wtk(cls, wtk, min_x=None, max_x=None, unit='um', parent=None,
                  default_properties=None):
         '''
         Create a shape from a WTK string.
@@ -355,7 +355,6 @@ class Shape(Polygon):
             Properties of the area. If `area` is a :class:`Area`, then this is
             not necessary.
         '''
-        name = "area{}".format(len(self._areas)) if name is None else name
         # check that area and self overlap
         assert self.overlaps(area) or self.contains(area), "`area` must be " +\
             "contained or at least overlap with the current shape."
@@ -370,6 +369,11 @@ class Shape(Polygon):
                 assert not intersection.overlaps(existing_area), \
                     "Different areas of a given Shape should not overlap."
         # check properties
+        if name is None:
+            if isinstance(area, Area):
+                name = area.name
+            else:
+                name = "area{}".format(len(self._areas))
         if height is None:
             if isinstance(area, Area):
                 height = area.height
