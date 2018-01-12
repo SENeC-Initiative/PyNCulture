@@ -510,10 +510,8 @@ class Shape(Polygon):
         # enter here only if Polygon or `container` is not None
         if custom_shape:
             seed_area = self.intersection(container)
-            seed_area = Shape.from_polygon(
-                seed_area.buffer(-soma_radius), min_x=min_x+soma_radius,
-                max_x=max_x-soma_radius)
-            if not isinstance(seed_area, Polygon):
+            seed_area = seed_area.buffer(-soma_radius)
+            if not isinstance(seed_area, (Polygon, MultiPolygon)):
                 raise ValueError("Invalid boundary value for seed region; "
                                  "check that the min/max values you requested "
                                  "are inside the shape.")
