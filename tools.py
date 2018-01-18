@@ -22,7 +22,7 @@
 
 import numpy as np
 
-from PyNCulture import _shapely_support
+from . import _shapely_support
 
 
 def pop_largest(shapes):
