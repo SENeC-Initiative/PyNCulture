@@ -30,7 +30,7 @@ culture_file = "culture_from_filled_polygons.svg"
 # culture_file = "culture_with_holes.svg"
 # culture_file = "culture.dxf"
 
-shapes = nc.shapes_from_file(culture_file)
+shapes = nc.shapes_from_file(culture_file, min_x=-5000., max_x=5000.)
 
 ''' Plot the shapes '''
 fig, ax = plt.subplots()
@@ -45,7 +45,7 @@ plt.show()
 fig2, ax2 = plt.subplots()
 plt.title("culture")
 
-culture = nc.culture_from_file(culture_file)
+culture = nc.culture_from_file(culture_file, min_x=-5000., max_x=5000.)
 
 nc.plot_shape(culture, ax2)
 
@@ -53,7 +53,7 @@ nc.plot_shape(culture, ax2)
 fig3, ax3 = plt.subplots()
 plt.title("culture with neurons")
 
-culture_bis = nc.culture_from_file(culture_file)
+culture_bis = nc.culture_from_file(culture_file, min_x=-5000., max_x=5000.)
 pos = culture_bis.seed_neurons(neurons=1000, xmax=0)
 
 nc.plot_shape(culture_bis, ax3, show=False)

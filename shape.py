@@ -34,7 +34,7 @@ from shapely.geometry import Point, Polygon, MultiPolygon
 import numpy as np
 from numpy.random import uniform
 
-import PyNCulture as pnc
+from . import __init__ as pnc
 from .geom_utils import conversion_magnitude
 from .tools import pop_largest
 
