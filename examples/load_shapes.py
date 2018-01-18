@@ -32,7 +32,7 @@ shapes_file = "areas.svg"
 
 shapes = None
 
-shapes = nc.shapes_from_file(shapes_file)
+shapes = nc.shapes_from_file(shapes_file, min_x=-2500., max_x=2500.)
 
 
 ''' Plot the shapes '''
@@ -57,7 +57,7 @@ main = nc.pop_largest(shapes)
 for i, s in enumerate(shapes):
     main.add_area(s, height=30*(i+1), name=str(i))
 
-pos = main.areas["2"].seed_neurons(100)
+pos = main.areas["2"].seed_neurons(100, soma_radius=20)
 
 fig, ax = plt.subplots()
 nc.plot_shape(main, axis=ax, show=False)
