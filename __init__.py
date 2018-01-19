@@ -65,16 +65,16 @@ try:
     from shapely import speedups
     if speedups.available:
         speedups.enable()
-    from .shape import Shape, Area
     _shapely_support = True
+    from .shape import Shape, Area
 except ImportError:
-    from .backup_shape import BackupShape as Shape
     _shapely_support = False
+    from .backup_shape import BackupShape as Shape
 
 from .tools import pop_largest
 
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 
 # -------------------- #
