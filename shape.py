@@ -28,7 +28,7 @@ from copy import deepcopy
 
 import shapely
 from shapely.wkt import loads
-from shapely.affinity import scale
+from shapely.affinity import scale, translate
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 import numpy as np
@@ -36,7 +36,7 @@ from numpy.random import uniform
 
 from . import __init__ as pnc
 from .geom_utils import conversion_magnitude
-from .tools import pop_largest
+from .tools import pop_largest, _insert_area
 
 
 __all__ = ["Area", "Shape"]
@@ -336,7 +336,8 @@ class Shape(Polygon):
         '''
         return deepcopy(self._areas)
 
-    def add_area(self, area, height=None, name=None, properties=None):
+    def add_area(self, area, height=None, name=None, properties=None,
+                 override=False):
         '''
         Add a new area to the :class:`Shape`.
         If the new area has a part that is outside the main :class:`Shape`,
@@ -354,6 +355,9 @@ class Shape(Polygon):
         properties : dict, optional (default: None)
             Properties of the area. If `area` is a :class:`Area`, then this is
             not necessary.
+        override : bool, optional (default: False)
+            If True, the new area will be made over existing areas that will
+            be reduced in consequence.
         '''
         # check that area and self overlap
         assert self.overlaps(area) or self.contains(area), "`area` must be " +\
@@ -361,13 +365,20 @@ class Shape(Polygon):
         # check whether this area intersects with existing areas other than
         # the default area.
         intersection = self.intersection(area)
-        # take largest only if multi-polygon
-        if isinstance(intersection, MultiPolygon):
-            intersection = pop_largest(intersection)
-        for key, existing_area in self._areas.items():
-            if key != "default_area":
-                assert not intersection.overlaps(existing_area), \
-                    "Different areas of a given Shape should not overlap."
+        if not override:
+            for key, existing_area in self._areas.items():
+                if key.find("default_area") == -1:
+                    assert not intersection.overlaps(existing_area), \
+                        "Different areas of a given Shape should not overlap."
+        else:
+            delete = []
+            for key, existing_area in self._areas.items():
+                new_existing = existing_area.difference(area)
+                if new_exing.empty():
+                    delete.append(key)
+                else:
+                    _insert_area(self, key, new_existing, existing_area.height,
+                                 existing_area.properties)
         # check properties
         if name is None:
             if isinstance(area, Area):
@@ -385,37 +396,12 @@ class Shape(Polygon):
             else:
                 properties = {}
         # create the area
-        new_area = Area.from_shape(
-            intersection, height=height, name=name, properties=properties)
-        self._areas[name] = new_area
+        _insert_area(self, name, intersection, height, properties)
         # update the default area
         default_area = self._areas["default_area"]
-        new_default = default_area.difference(new_area)
-        # take largest only if multi-polygon
-        if isinstance(new_default, MultiPolygon):
-            new_default = pop_largest(new_default)
-        self._areas["default_area"] = Area.from_shape(
-            new_default, height=default_area.height, name="default_area",
-            properties=default_area.properties)
-
-    def add_subshape(self, subshape, position, unit='um'):
-        """
-        Add a :class:`Shape` to the current one.
-
-        Parameters
-        ----------
-        subshape : :class:`Shape`
-            Subshape to add.
-        position : tuple of doubles
-            Position of the subshape's center of gravity in space.
-        unit : string (default: 'um')
-            Unit in the metric system among 'um', 'mm', 'cm', 'dm', 'm'
-
-        Returns
-        -------
-        None
-        """
-        raise NotImplementedError("To be implemented.")
+        new_default = default_area.difference(intersection)
+        _insert_area(self, "default_area", new_default, default_area.height,
+                     default_area.properties)
 
     def set_parent(self, parent):
         ''' Set the parent :class:`nngt.Graph`. '''
