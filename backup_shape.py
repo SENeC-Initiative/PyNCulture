@@ -375,5 +375,8 @@ class BackupShape:
 
         return positions
 
-    def random_obstacles(n, heights=None, on_area=None, etching=None):
+    def add_hole(self, *args, **kwargs):
+        raise NotImplementedError("Not available with backup shape.")
+
+    def random_obstacles(self, *args, **kwargs):
         raise NotImplementedError("Not available with backup shape.")
