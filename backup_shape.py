@@ -374,3 +374,6 @@ class BackupShape:
             positions *= conversion_magnitude(unit, self._unit)
 
         return positions
+
+    def random_obstacles(n, heights=None, on_area=None, etching=None):
+        raise NotImplementedError("Not available with backup shape.")

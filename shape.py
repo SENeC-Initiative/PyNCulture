@@ -517,6 +517,114 @@ class Shape(Polygon):
 
         return positions
 
+    def random_obstacles(n, form, params=None, heights=None, properties=None,
+                         etching=0, on_area=None):
+        '''
+        Place random obstacles inside the shape.
+
+        Parameters
+        ----------
+        n : int or float
+            Number of obstacles if `n` is an :obj:`int`, otherwise represents
+            the fraction of the shape's bounding box that should be occupied by
+             the obstacles' bounding boxes.
+        form : str or Shape
+            Form of the obstacles, among "disk", "ellipse", "rectangle", or a
+            custom shape.
+        params : dict, optional (default: None)
+            Dictionnary containing the instructions to build a predefined form
+            ("disk", "ellipse", "rectangle"). See their creation methods for
+            details. Leave `None` when using a custom shape.
+        heights : float or list, optional (default: None)
+            Heights of the obstacles. If None, the obstacle will considered as
+            a "hole" in the structure, i.e. an uncrossable obstacle.
+        properties : dict or list, optional (default: None)
+            Properties of the obstacles if they constitue areas (only used if
+            `heights` is not None). If not provided and `heights` is not None,
+            will default to the "default_area" properties.
+        etching : float, optional (default: 0)
+            Etching of the obstacles' corners (rounded corners). Valid only
+            for 
+        '''
+        form_center = None
+
+        # check n
+        if not isinstance(n, np.integer):
+            assert n <= 1, "Filling fraction (floating point `n`) must be "  +\
+                           "smaller or equal to 1."
+
+        # check form
+        if form == "disk":
+            form = self.disk(**params)
+        elif form == "ellipse":
+            form = self.ellipse(**params)
+        elif form == "rectangle":
+            form = self.rectangle(**params)
+        elif not isinstance(form, Polygon):
+            raise RuntimeError("Invalid form: '{}'.".format(form))
+
+        # get form len and height
+        xmin, ymin, xmax, ymax = self.bounds
+        width                  = xmax - xmin
+        height                 = ymax - ymin
+        
+        # get form center and center on (0, 0)
+        xmin, ymin, xmax, ymax = form.bounds
+        form_center            = (0.5*(xmax + xmin), 0.5*(ymax + ymin))
+        form_width             = xmax - xmin
+        form_height            = ymax - ymin
+        form_bbox_area         = float((xmax - xmin)*(ymax - ymin))
+
+        if not np.allclose(form_center, (0, 0)):
+            form = translate(form, -form_center[0], -form_center[1])
+
+        # create points where obstacles can be located
+        locations = []
+        on_width  = int(np.rint(width / form_width))
+        on_height = int(np.rint(height / form_height))
+        x_offset  = 0.5*(width - on_width*form_width)
+        y_offset  = 0.5*(height - on_height*form_width)
+
+        for i in range(on_width):
+            for j in range(on_height):
+                x = xmin + (i + x_offset)*form_width
+                y = ymin + (j + y_offset)*form_height
+                locations.append((x, y))
+
+        # get elected locations
+        if not isinstance(n, np.integer):
+            n = int(np.rint(len(locations) * n))
+
+        indices   = list(range(len(locations)))
+        indices   = np.choose(indices, n)
+        locations = [locations[i] for i in indices]
+
+        # check heights
+        if heights is not None:
+            try:
+                if len(heights) != n:
+                    raise RuntimeError("One `height` entry per obstacle is "
+                                       "required; expected "
+                                       "{} but got {}".format(n, len(heights)))
+            except TypeError:
+                heights = [heights for _ in range(n)]
+
+        # make names
+        num_obstacles = 0
+        for name in self.areas:
+            if name.find("obstacle_") == 0:
+                num_obstacles += 1
+
+        names = ["obstacle_{}".format(num_obstacles + i) for i in range(n)]
+
+        # create the obstacles
+        if heights is None:
+            pass
+        else:
+            for loc, h, name, p in zip(locations, heights, names, properties):
+                new_form = translate(form, loc[0], loc[1])
+                self.add_area(new_form, height=h, name=name, properties=p)
+
 
 class Area(Shape):
     """
