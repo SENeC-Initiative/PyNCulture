@@ -55,3 +55,47 @@ def pop_largest(shapes):
         return shapes[max_idx]
 
     return shapes.pop(max_idx)
+
+
+def _insert_area(container, area_name, shape, height, properties):
+    '''
+    Insert the area into the container, potentially restructuring the existing
+    areas.
+    In particular, if the shape is composed of multiple polygons, it will
+    be inserted as "area_name_X", with X ranging from 0 to N-1, N being the
+    number of polygons.
+
+    If `area_name` already exists in `container`, it will be overriden,
+    potentially even deleted in favor of numbered subareas if it is
+    replaced by a set of polygons.
+    The only exception to that rule is the "default_area", which is never
+    deleted but replaced by the largest polygon, while the smaller ones are
+    numbered from 1.
+    '''
+    # import
+    from .shape import Area
+    from shapely.geometry import MultiPolygon
+    # check for multiple polygons
+    if shape.__class__ == MultiPolygon:
+        # behavior differs for default_area (never deleted) and other areas
+        if area_name == "default_area":
+            largest = pop_largest(shape)
+            count   = 1
+            for p in shape:
+                new_name = area_name
+                if p != largest:
+                    new_name = area_name + '_' + str(count)
+                    count += 1
+                container._areas[new_name] = Area.from_shape(
+                    p, height=height, name=new_name, properties=properties)
+        else:
+            for i, p in enumerate(shape):
+                new_name = area_name + '_' + str(i)
+                container._areas[new_name] = Area.from_shape(
+                    p, height=height, name=new_name, properties=properties)
+            if area_name in container.areas:
+                del container._areas[area_name]
+    else:
+        container._areas[area_name] = Area.from_shape(
+                shape, height=height, name=area_name, properties=properties)
+            
