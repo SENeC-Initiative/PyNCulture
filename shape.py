@@ -446,120 +446,6 @@ class Shape(Polygon):
         _insert_area(self, "default_area", new_default, default_area.height,
                      default_area.properties)
 
-    def set_parent(self, parent):
-        ''' Set the parent :class:`nngt.Graph`. '''
-        self._parent = weakref.proxy(parent) if parent is not None else None
-
-    def seed_neurons(self, neurons=None, container=None, xmin=None, xmax=None,
-                     ymin=None, ymax=None, soma_radius=0, unit=None):
-        '''
-        Return the positions of the neurons inside the
-        :class:`Shape`.
-
-        Parameters
-        ----------
-        neurons : int, optional (default: None)
-            Number of neurons to seed. This argument is considered only if the
-            :class:`Shape` has no `parent`, otherwise, a position is generated
-            for each neuron in `parent`.
-        container : :class:`Shape`, optional (default: None)
-            Subshape acting like a mask, in which the neurons must be
-            contained. The resulting area where the neurons are generated is
-            the :func:`~shapely.Shape.intersection` between of the current
-            shape and the `container`.
-        xmin : double, optional (default: lowest abscissa of the Shape)
-            Limit the area where neurons will be seeded to the region on the
-            right of `xmin`.
-        xmax : double, optional (default: highest abscissa of the Shape)
-            Limit the area where neurons will be seeded to the region on the
-            left of `xmax`.
-        ymin : double, optional (default: lowest ordinate of the Shape)
-            Limit the area where neurons will be seeded to the region on the
-            upper side of `ymin`.
-        ymax : double, optional (default: highest ordinate of the Shape)
-            Limit the area where neurons will be seeded to the region on the
-            lower side of `ymax`.
-        unit : string (default: None)
-            Unit in which the positions of the neurons will be returned, among
-            'um', 'mm', 'cm', 'dm', 'm'.
-
-        Returns
-        -------
-        positions : array of double with shape (N, 2)
-        '''
-        positions = None
-        if self._parent is not None:
-            neurons = self._parent.node_nb()
-        if neurons is None:
-            raise ValueError("`neurons` cannot be None if `parent` is None.")
-        
-        min_x, min_y, max_x, max_y = self.bounds
-
-        custom_shape = False
-        if container is None:
-            # set min/max
-            if xmin is None:
-                xmin = -np.inf
-            if ymin is None:
-                ymin = -np.inf
-            if xmax is None:
-                xmax = np.inf
-            if ymax is None:
-                ymax = np.inf
-            min_x = max(xmin, min_x)  # smaller that Shape max x
-            assert min_x <= self.bounds[2], "`min_x` must be inside Shape."
-            min_y = max(ymin, min_y)  # smaller that Shape max y
-            assert min_y <= self.bounds[3], "`min_y` must be inside Shape."
-            max_x = min(xmax, max_x)  # larger that Shape min x
-            assert max_x >= self.bounds[0], "`max_x` must be inside Shape."
-            max_y = min(ymax, max_y)  # larger that Shape min y
-            assert max_y >= self.bounds[1], "`max_y` must be inside Shape."
-            # remaining tests
-            if self._geom_type == "Rectangle":
-                xx = uniform(
-                    min_x + soma_radius, max_x - soma_radius, size=neurons)
-                yy = uniform(
-                    min_y + soma_radius, max_y - soma_radius, size=neurons)
-                positions = np.vstack((xx, yy)).T
-            elif (self._geom_type == "Disk"
-                  and (xmin, ymin, xmax, ymax) == self.bounds):
-                theta = uniform(0, 2*np.pi, size=neurons)
-                # take some precaution to stay inside the shape
-                r = (self.radius - soma_radius) *\
-                    np.sqrt(uniform(0, 0.99, size=neurons))
-                positions = np.vstack(
-                    (r*np.cos(theta) + self.centroid[0],
-                     r*np.sin(theta) + self.centroid[1])).T
-            else:
-                custom_shape = True
-                container = Polygon([(min_x, min_y), (min_x, max_y),
-                                     (max_x, max_y), (max_x, min_y)])
-        else:
-            custom_shape = True
-        # enter here only if Polygon or `container` is not None
-        if custom_shape:
-            seed_area = self.intersection(container)
-            seed_area = seed_area.buffer(-soma_radius)
-            if not isinstance(seed_area, (Polygon, MultiPolygon)):
-                raise ValueError("Invalid boundary value for seed region; "
-                                 "check that the min/max values you requested "
-                                 "are inside the shape.")
-            points = []
-            p = Point()
-            while len(points) < neurons:
-                new_x = uniform(min_x, max_x, neurons-len(points))
-                new_y = uniform(min_y, max_y, neurons-len(points))
-                for x, y in zip(new_x, new_y):
-                    p.coords = (x, y)
-                    if seed_area.contains(p):
-                        points.append((x, y))
-            positions = np.array(points)
-
-        if unit is not None and unit != self._unit:
-            positions *= conversion_magnitude(unit, self._unit)
-
-        return positions
-
     def add_hole(self, hole):
         '''
         Make a hole in the shape.
@@ -737,6 +623,165 @@ class Shape(Polygon):
                     elif self.overlaps(new_form) or self.contains(new_form):
                             self.add_area(new_form, height=h, name=name,
                                           properties=p, override=True)
+
+    def set_parent(self, parent):
+        ''' Set the parent :class:`nngt.Graph`. '''
+        self._parent = weakref.proxy(parent) if parent is not None else None
+
+    def seed_neurons(self, neurons=None, container=None, on_area=None,
+                     xmin=None, xmax=None, ymin=None, ymax=None, soma_radius=0,
+                     unit=None):
+        '''
+        Return the positions of the neurons inside the
+        :class:`Shape`.
+
+        Parameters
+        ----------
+        neurons : int, optional (default: None)
+            Number of neurons to seed. This argument is considered only if the
+            :class:`Shape` has no `parent`, otherwise, a position is generated
+            for each neuron in `parent`.
+        container : :class:`Shape`, optional (default: None)
+            Subshape acting like a mask, in which the neurons must be
+            contained. The resulting area where the neurons are generated is
+            the :func:`~shapely.Shape.intersection` between of the current
+            shape and the `container`.
+        on_area : str or list, optional (default: None)
+            Area(s) where the seeded neurons should be.
+        xmin : double, optional (default: lowest abscissa of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            right of `xmin`.
+        xmax : double, optional (default: highest abscissa of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            left of `xmax`.
+        ymin : double, optional (default: lowest ordinate of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            upper side of `ymin`.
+        ymax : double, optional (default: highest ordinate of the Shape)
+            Limit the area where neurons will be seeded to the region on the
+            lower side of `ymax`.
+        unit : string (default: None)
+            Unit in which the positions of the neurons will be returned, among
+            'um', 'mm', 'cm', 'dm', 'm'.
+
+        Note
+        ----
+        If both `container` and `on_area` are provided, the intersection of
+        the two is used.
+
+        Returns
+        -------
+        positions : array of double with shape (N, 2)
+        '''
+        positions = None
+        if neurons is None and self._parent is not None:
+            neurons = self._parent.node_nb()
+        if neurons is None:
+            raise ValueError("`neurons` cannot be None if `parent` is None.")
+        if on_area is not None:
+            if not hasattr(on_area, '__iter__'):
+                on_area = [on_area]
+        
+        min_x, min_y, max_x, max_y = self.bounds
+
+        custom_shape = (container is not None)
+        if container is None and on_area is None:
+            # set min/max
+            if xmin is None:
+                xmin = -np.inf
+            if ymin is None:
+                ymin = -np.inf
+            if xmax is None:
+                xmax = np.inf
+            if ymax is None:
+                ymax = np.inf
+            min_x = max(xmin, min_x)  # smaller that Shape max x
+            assert min_x <= self.bounds[2], "`min_x` must be inside Shape."
+            min_y = max(ymin, min_y)  # smaller that Shape max y
+            assert min_y <= self.bounds[3], "`min_y` must be inside Shape."
+            max_x = min(xmax, max_x)  # larger that Shape min x
+            assert max_x >= self.bounds[0], "`max_x` must be inside Shape."
+            max_y = min(ymax, max_y)  # larger that Shape min y
+            assert max_y >= self.bounds[1], "`max_y` must be inside Shape."
+            # remaining tests
+            if self._geom_type == "Rectangle":
+                xx = uniform(
+                    min_x + soma_radius, max_x - soma_radius, size=neurons)
+                yy = uniform(
+                    min_y + soma_radius, max_y - soma_radius, size=neurons)
+                positions = np.vstack((xx, yy)).T
+            elif (self._geom_type == "Disk"
+                  and (xmin, ymin, xmax, ymax) == self.bounds):
+                theta = uniform(0, 2*np.pi, size=neurons)
+                # take some precaution to stay inside the shape
+                r = (self.radius - soma_radius) *\
+                    np.sqrt(uniform(0, 0.99, size=neurons))
+                positions = np.vstack(
+                    (r*np.cos(theta) + self.centroid[0],
+                     r*np.sin(theta) + self.centroid[1])).T
+            else:
+                custom_shape = True
+                container = Polygon([(min_x, min_y), (min_x, max_y),
+                                     (max_x, max_y), (max_x, min_y)])
+        elif on_area is not None:
+            custom_shape = True
+            area_shape   = Polygon()
+            for area in on_area:
+                area_shape = area_shape.union(self._areas[area])
+            if container is not None:
+                print("container was not None.")
+                container = container.intersection(area_shape)
+            else:
+                container = area_shape
+            assert container.area > 0, "`container` and `on_area` have " +\
+                                       "empty intersection."
+
+        # enter here only if Polygon or `container` is not None
+        if custom_shape:
+            seed_area = self.intersection(container)
+            seed_area = seed_area.buffer(-soma_radius)
+            if not isinstance(seed_area, (Polygon, MultiPolygon)):
+                raise ValueError("Invalid boundary value for seed region; "
+                                 "check that the min/max values you requested "
+                                 "are inside the shape.")
+            points = []
+            p = Point()
+            while len(points) < neurons:
+                new_x = uniform(min_x, max_x, neurons-len(points))
+                new_y = uniform(min_y, max_y, neurons-len(points))
+                for x, y in zip(new_x, new_y):
+                    p.coords = (x, y)
+                    if seed_area.contains(p):
+                        points.append((x, y))
+            positions = np.array(points)
+
+        if unit is not None and unit != self._unit:
+            positions *= conversion_magnitude(unit, self._unit)
+
+        return positions
+
+    def contains_neurons(self, positions):
+        '''
+        Check whether the neurons are contained in the shape.
+
+        .. versionadded:: 0.4
+
+        Parameters
+        ----------
+        positions : point or 2D-array of shape (N, 2)
+
+        Returns
+        -------
+        contained : bool or 1D boolean array of length N
+            True if the neuron is contained, False otherwise.
+        '''
+        if np.shape(positions) == (len(positions), 2):
+            contained = []
+            for pos in positions:
+                contained.append(self.contains(Point(*pos)))
+            return np.array(contained, dtype=bool)
+        else:
+            return self.contains(Point(*positions))
 
 
 class Area(Shape):

@@ -61,12 +61,23 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         :class:`Area` objects.
     kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
     '''
+    # import
     import matplotlib.pyplot as plt
+    MultiPolygon = None
+    try:
+        from shapely.geometry import MultiPolygon
+    except ImportError:
+        pass
+
     if axis is None:
         fig, axis = plt.subplots()
 
     # plot the main shape
-    if shape.exterior.coords:
+    if isinstance(shape, MultiPolygon):
+        for p in shape:
+            plot_shape(p, axis=axis, m=m, mc=mc, fc=fc, ec=ec, alpha=alpha,
+                       brightness=brightness, show=False, **kwargs)
+    elif shape.exterior.coords:
         _plot_coords(axis, shape.exterior, m, mc, ec)
         for path in shape.interiors:
             _plot_coords(axis, path.coords, m, mc, ec)
