@@ -61,56 +61,66 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         :class:`Area` objects.
     kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
     '''
+    # import
     import matplotlib.pyplot as plt
+    MultiPolygon = None
+    try:
+        from shapely.geometry import MultiPolygon
+    except ImportError:
+        pass
+
     if axis is None:
         fig, axis = plt.subplots()
 
     # plot the main shape
-    _plot_coords(axis, shape.exterior, m, mc, ec)
-    for path in shape.interiors:
-        _plot_coords(axis, path.coords, m, mc, ec)
-    patch = _make_patch(shape, color=fc, alpha=alpha, zorder=0, **kwargs)
-    axis.add_patch(patch)
+    if isinstance(shape, MultiPolygon):
+        for p in shape:
+            plot_shape(p, axis=axis, m=m, mc=mc, fc=fc, ec=ec, alpha=alpha,
+                       brightness=brightness, show=False, **kwargs)
+    elif shape.exterior.coords:
+        _plot_coords(axis, shape.exterior, m, mc, ec)
+        for path in shape.interiors:
+            _plot_coords(axis, path.coords, m, mc, ec)
+        patch = _make_patch(shape, color=fc, alpha=alpha, zorder=0, **kwargs)
+        axis.add_patch(patch)
 
-    # take care of the areas
-    if hasattr(shape, "areas"):
-        def_area = shape.areas["default_area"]
-        def get_prop(area):
-            is_height = brightness == "height"
-            return area.height if is_height else area.properties[brightness]
+        # take care of the areas
+        if hasattr(shape, "areas"):
+            def_area = shape.areas["default_area"]
 
-        # get the highest and lowest properties
-        mean = get_prop(def_area)
-        low, high = np.inf, -np.inf
+            # get the highest and lowest properties
+            mean = _get_prop(def_area, brightness)
+            low, high = np.inf, -np.inf
 
-        for name, area in shape.areas.items():
-            if name != "default_area":
-                prop = get_prop(area)
-                if prop < low:
-                    low = prop
-                if prop > high:
-                    high = prop
+            for name, area in shape.areas.items():
+                if name != "default_area":
+                    prop = _get_prop(area, brightness)
+                    if prop < low:
+                        low = prop
+                    if prop > high:
+                        high = prop
 
-        # plot the areas
-        for name, area in shape.areas.items():
-            if name != "default_area":
-                prop         = get_prop(area)
-                color        = fc
-                local_alpha  = 0
-                if prop < mean:
-                    color       = "black"
-                    local_alpha = alpha * (prop - mean) / (low - mean)
-                else:
-                    color       = "white"
-                    local_alpha = alpha * (prop - mean) / (high - mean)
-                # contour
-                _plot_coords(axis, area.exterior, m, mc, ec)
-                for path in shape.interiors:
-                    _plot_coords(axis, path.coords, m, mc, ec)
-                # content
-                patch = _make_patch(
-                    area, color=color, alpha=local_alpha, zorder=0, **kwargs)
-                axis.add_patch(patch)
+            # plot the areas
+            for name, area in shape.areas.items():
+                if name != "default_area":
+                    prop         = _get_prop(area, brightness)
+                    color        = fc
+                    local_alpha  = 0
+                    if prop < mean:
+                        color       = "black"
+                        local_alpha = alpha * (prop - mean) / (low - mean)
+                    else:
+                        color       = "white"
+                        local_alpha = alpha * (prop - mean) / (high - mean)
+                    # contour
+                    _plot_coords(axis, area.exterior, m, mc, ec)
+                    for path in shape.interiors:
+                        _plot_coords(axis, path.coords, m, mc, ec)
+                    # content
+                    patch = _make_patch(
+                        area, color=color, alpha=local_alpha, zorder=0,
+                        **kwargs)
+                    axis.add_patch(patch)
 
     axis.set_aspect(1)
 
@@ -166,5 +176,15 @@ def _path_instructions(ob):
 
 
 def _plot_coords(ax, ob, m, mc, ec):
-    x, y = ob.xy
-    ax.plot(x, y, m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
+    if hasattr(ob, 'coords') and isinstance(ob.coords, list):
+        for coord in ob.coords:
+            x, y = ob.xy
+            ax.plot(x, y, m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
+    else:
+        x, y = ob.xy
+        ax.plot(x, y, m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
+
+
+def _get_prop(area, brightness):
+    is_height = (brightness == "height")
+    return area.height if is_height else area.properties[brightness]

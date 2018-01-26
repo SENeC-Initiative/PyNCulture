@@ -30,6 +30,7 @@ import shapely
 from shapely.wkt import loads
 from shapely.affinity import scale, translate
 from shapely.geometry import Point, Polygon, MultiPolygon
+from shapely.geometry.base import geom_factory
 
 import numpy as np
 from numpy.random import uniform
@@ -95,8 +96,8 @@ class Shape(Polygon):
                 interpolate_curve=interpolate_curve,
                 default_properties=default_properties)
 
-    @classmethod
-    def from_polygon(cls, polygon, min_x=None, max_x=None, unit='um',
+    @staticmethod
+    def from_polygon(polygon, min_x=None, max_x=None, unit='um',
                      parent=None, default_properties=None):
         '''
         Create a shape from a :class:`shapely.geometry.Polygon`.
@@ -119,28 +120,38 @@ class Shape(Polygon):
         default_properties : dict, optional (default: None)
             Default properties of the environment.
         '''
-        assert isinstance(polygon, Polygon), "Expected a Polygon object."
+        obj    = None
+        g_type = None
+        if isinstance(polygon, MultiPolygon):
+            g_type = "MultiPolygon"
+        elif isinstance(polygon, (Polygon, Shape, Area)):
+            g_type = "Polygon"
+        else:
+            raise TypeError("Expected a Polygon or MultiPolygon object.")
         # find the scaling factor
-        scaling = 1.
         if None not in (min_x, max_x):
-            ext = np.array(polygon.exterior.coords)
-            leftmost = np.min(ext[:, 0])
-            rightmost = np.max(ext[:, 0])
-            scaling = (max_x - min_x) / (rightmost - leftmost)
-        # create the newly scaled polygon and convert it to Shape
-        p2 = scale(polygon, scaling, scaling)
-        p2.__class__ = cls
-        p2._parent = parent
-        p2._unit = unit
-        p2._geom_type = 'Polygon'
-        p2._areas = {
-            "default_area": Area.from_shape(p2, name="default_area",
+            ext        = np.array(polygon.exterior.coords)
+            leftmost   = np.min(ext[:, 0])
+            rightmost  = np.max(ext[:, 0])
+            scaling    = (max_x - min_x) / (rightmost - leftmost)
+            obj        = scale(polygon, scaling, scaling)
+        else:
+            if g_type == "Polygon":
+                obj    = Polygon(polygon)
+            else:
+                obj    = MultiPolygon(polygon)
+        obj.__class__  = Shape
+        obj._parent    = None
+        obj._unit      = unit
+        obj._geom_type = g_type
+        obj._areas = {
+            "default_area": Area.from_shape(obj, name="default_area",
                                             properties=default_properties)
         }
-        return p2
+        return obj
 
-    @classmethod
-    def from_wtk(cls, wtk, min_x=None, max_x=None, unit='um', parent=None,
+    @staticmethod
+    def from_wtk(wtk, min_x=None, max_x=None, unit='um', parent=None,
                  default_properties=None):
         '''
         Create a shape from a WTK string.
@@ -170,12 +181,12 @@ class Shape(Polygon):
         :func:`Shape.from_polygon` for details about the other arguments.
         '''
         p = loads(wtk)
-        return cls.from_polygon(
+        return Shape.from_polygon(
             p, min_x=min_x, max_x=max_x, unit=unit, parent=parent,
             default_properties=default_properties)
 
-    @classmethod
-    def rectangle(cls, height, width, centroid=(0., 0.), unit='um',
+    @staticmethod
+    def rectangle(height, width, centroid=(0., 0.), unit='um',
                   parent=None, default_properties=None):
         '''
         Generate a rectangle of given height, width and center of mass.
@@ -208,13 +219,13 @@ class Shape(Polygon):
                   centroid + [half_w, -half_h],
                   centroid - [half_w, half_h],
                   centroid - [half_w, -half_h]]
-        shape = cls(points, unit=unit, parent=parent,
-                    default_properties=default_properties)
+        shape = Shape(points, unit=unit, parent=parent,
+                      default_properties=default_properties)
         shape._geom_type = "Rectangle"
         return shape
 
-    @classmethod
-    def disk(cls, radius, centroid=(0.,0.), unit='um', parent=None,
+    @staticmethod
+    def disk(radius, centroid=(0.,0.), unit='um', parent=None,
              default_properties=None):
         '''
         Generate a disk of given radius and center (`centroid`).
@@ -241,15 +252,15 @@ class Shape(Polygon):
         centroid = np.array(centroid)
         minx = centroid[0] - radius
         maxx = centroid[0] + radius
-        disk = cls.from_polygon(
+        disk = Shape.from_polygon(
             Point(centroid).buffer(radius), min_x=minx, max_x=maxx, unit=unit,
             parent=parent, default_properties=default_properties)
         disk._geom_type = "Disk"
         disk.radius = radius
         return disk
 
-    @classmethod
-    def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None,
+    @staticmethod
+    def ellipse(radii, centroid=(0.,0.), unit='um', parent=None,
                 default_properties=None):
         '''
         Generate a disk of given radius and center (`centroid`).
@@ -277,7 +288,7 @@ class Shape(Polygon):
         rx, ry = radii
         minx = centroid[0] - rx
         maxx = centroid[0] + rx
-        ellipse = cls.from_polygon(
+        ellipse = Shape.from_polygon(
             scale(Point(centroid).buffer(1.), rx, ry), min_x=minx, max_x=maxx,
             unit=unit, parent=parent, default_properties=default_properties)
         ellipse._geom_type = "Ellipse"
@@ -336,6 +347,34 @@ class Shape(Polygon):
         '''
         return deepcopy(self._areas)
 
+    @property
+    def default_areas(self):
+        '''
+        Returns the dictionary containing only the default areas.
+
+        .. versionadded:: 0.4
+        '''
+        areas = {
+            k: deepcopy(v) for k,v in self._areas.items()
+            if k.find("default_area") == 0
+        }
+        return areas
+
+    @property
+    def non_default_areas(self):
+        '''
+        Returns the dictionary containing all Shape's areas except the
+        default ones.
+
+        .. versionadded:: 0.4
+        '''
+        areas = {
+            k: deepcopy(v) for k,v in self._areas.items()
+            if k.find("default_area") != 0
+        }
+        return areas
+        
+
     def add_area(self, area, height=None, name=None, properties=None,
                  override=False):
         '''
@@ -366,19 +405,23 @@ class Shape(Polygon):
         # the default area.
         intersection = self.intersection(area)
         if not override:
-            for key, existing_area in self._areas.items():
+            for key, other_area in self._areas.items():
                 if key.find("default_area") == -1:
-                    assert not intersection.overlaps(existing_area), \
+                    assert not intersection.overlaps(other_area), \
                         "Different areas of a given Shape should not overlap."
         else:
             delete = []
-            for key, existing_area in self._areas.items():
-                new_existing = existing_area.difference(area)
-                if new_exing.empty():
-                    delete.append(key)
-                else:
-                    _insert_area(self, key, new_existing, existing_area.height,
-                                 existing_area.properties)
+            for key, other_area in self.non_default_areas.items():
+                if other_area.overlaps(area) or other_area.contains(area):
+                    new_existing = other_area.difference(area)
+                    if new_existing.empty():
+                        delete.append(key)
+                    else:
+                        _insert_area(self, key, new_existing,
+                                     other_area.height, other_area.properties)
+            for key in delete:
+                del self._areas[key]
+
         # check properties
         if name is None:
             if isinstance(area, Area):
@@ -403,12 +446,191 @@ class Shape(Polygon):
         _insert_area(self, "default_area", new_default, default_area.height,
                      default_area.properties)
 
+    def add_hole(self, hole):
+        '''
+        Make a hole in the shape.
+
+        .. versionadded:: 0.4
+        '''
+        areas = self.areas.copy()
+        new_shape  = Shape.from_polygon(
+            self.difference(hole), unit=self.unit, parent=self.parent,
+            default_properties=areas["default_area"].properties)
+
+        self._geom             = new_shape._geom
+        new_shape._other_owned = True
+
+        for name, area in areas.items():
+            if name.find("default_area") != 0:
+                _insert_area(self, name, area.difference(hole),
+                             area.height, area.properties)
+
+    def random_obstacles(self, n, form, params=None, heights=None,
+                         properties=None, etching=0, on_area=None):
+        '''
+        Place random obstacles inside the shape.
+
+        .. versionadded:: 0.4
+
+        Parameters
+        ----------
+        n : int or float
+            Number of obstacles if `n` is an :obj:`int`, otherwise represents
+            the fraction of the shape's bounding box that should be occupied by
+             the obstacles' bounding boxes.
+        form : str or Shape
+            Form of the obstacles, among "disk", "ellipse", "rectangle", or a
+            custom shape.
+        params : dict, optional (default: None)
+            Dictionnary containing the instructions to build a predefined form
+            ("disk", "ellipse", "rectangle"). See their creation methods for
+            details. Leave `None` when using a custom shape.
+        heights : float or list, optional (default: None)
+            Heights of the obstacles. If None, the obstacle will considered as
+            a "hole" in the structure, i.e. an uncrossable obstacle.
+        properties : dict or list, optional (default: None)
+            Properties of the obstacles if they constitue areas (only used if
+            `heights` is not None). If not provided and `heights` is not None,
+            will default to the "default_area" properties.
+        etching : float, optional (default: 0)
+            Etching of the obstacles' corners (rounded corners). Valid only
+            for 
+        '''
+        form_center = None
+
+        # check n
+        if not isinstance(n, np.integer):
+            assert n <= 1, "Filling fraction (floating point `n`) must be "  +\
+                           "smaller or equal to 1."
+
+        # check form
+        if form == "disk":
+            form = self.disk(**params)
+        elif form == "ellipse":
+            form = self.ellipse(**params)
+        elif form == "rectangle":
+            form = self.rectangle(**params)
+        elif not isinstance(form, (Polygon, MultiPolygon, Shape, Area)):
+            raise RuntimeError("Invalid form: '{}'.".format(form))
+        
+        # get form center and center on (0, 0)
+        xmin, ymin, xmax, ymax = form.bounds
+        form_center            = (0.5*(xmax + xmin), 0.5*(ymax + ymin))
+        form_width             = xmax - xmin
+        form_height            = ymax - ymin
+        form_bbox_area         = float((xmax - xmin)*(ymax - ymin))
+
+        # get shape width and height
+        xmin, ymin, xmax, ymax = self.bounds
+        width                  = xmax - xmin
+        height                 = ymax - ymin
+
+        if not np.allclose(form_center, (0, 0)):
+            form = translate(form, -form_center[0], -form_center[1])
+
+        # create points where obstacles can be located
+        locations = []
+        on_width  = int(np.rint(width / form_width))
+        on_height = int(np.rint(height / form_height))
+        x_offset  = 0.5*(width - on_width*form_width)
+        y_offset  = 0.5*(height - on_height*form_height)
+
+        for i in range(on_width):
+            for j in range(on_height):
+                x = xmin + (i + x_offset)*form_width
+                y = ymin + (j + y_offset)*form_height
+                locations.append((x, y))
+
+        # get elected locations
+        if not isinstance(n, np.integer):
+            n = int(np.rint(len(locations) * n))
+
+        indices   = list(range(len(locations)))
+        indices   = np.random.choice(indices, n, replace=False)
+        locations = [locations[i] for i in indices]
+
+        # check heights
+        same_prop = []
+        if heights is not None:
+            try:
+                if len(heights) != n:
+                    raise RuntimeError("One `height` entry per obstacle is "
+                                       "required; expected "
+                                       "{} but got {}".format(n, len(heights)))
+                same_prop.append(np.allclose(heights, heights[0]))
+            except TypeError:
+                same_prop.append(True)
+                heights     = [heights for _ in range(n)]
+
+        # check properties
+        if isinstance(properties, dict):
+            properties = (properties for _ in range(n))
+            same_prop.append(True)
+        elif properties is not None:
+            assert len(properties) == n, \
+                "One `properties` entry per obstacle is  required; " +\
+                "expected {} but got {}".format(n, len(properties))
+            same_prop.append(True)
+            for dic in properties:
+                same_prop[-1] *= (dic == properties[0])
+        else:
+            same_prop.append(True)
+            properties = (
+                self.areas["default_area"].properties.copy() for _ in range(n)
+            )
+
+        # make names
+        num_obstacles = 0
+        for name in self.areas:
+            if name.find("obstacle_") == 0:
+                num_obstacles += 1
+
+        names = ["obstacle_{}".format(num_obstacles + i) for i in range(n)]
+
+        # create the obstacles
+        if heights is None:
+            new_form = Polygon()
+            for loc in locations:
+                new_form = new_form.union(translate(form, loc[0], loc[1]))
+            if etching > 0:
+                new_form = new_form.buffer(-etching, cap_style=3)
+                new_form = new_form.buffer(etching)
+            self.add_hole(new_form)
+        else:
+            if same_prop:
+                # potentially contiguous areas
+                new_form = Polygon()
+                h        = next(iter(heights))
+                prop     = next(iter(properties))
+                for loc in locations:
+                    new_form = new_form.union(translate(form, loc[0], loc[1]))
+                if etching > 0:
+                    new_form = new_form.buffer(-etching, cap_style=3)
+                    new_form = new_form.buffer(etching)
+                if self.overlaps(new_form) or self.contains(new_form):
+                    self.add_area(new_form, height=h, name="obstacle",
+                                  properties=prop, override=True)
+            else:
+                # many separate areas
+                prop = (locations, heights, names, properties)
+                for loc, h, name, p in zip(*prop):
+                    new_form = translate(form, loc[0], loc[1])
+                    if etching > 0:
+                        new_form = new_form.buffer(-etching, cap_style=3)
+                        new_form = new_form.buffer(etching)
+                    if h is None:
+                        self.add_hole(new_form)
+                    elif self.overlaps(new_form) or self.contains(new_form):
+                            self.add_area(new_form, height=h, name=name,
+                                          properties=p, override=True)
+
     def set_parent(self, parent):
         ''' Set the parent :class:`nngt.Graph`. '''
         self._parent = weakref.proxy(parent) if parent is not None else None
 
-    def seed_neurons(self, neurons=None, container=None, xmin=None, xmax=None,
-                     ymin=None, ymax=None, soma_radius=0, unit=None):
+    def seed_neurons(self, neurons=None, container=None, on_area=None,
+                     xmin=None, xmax=None, ymin=None, ymax=None, soma_radius=0,
+                     unit=None):
         '''
         Return the positions of the neurons inside the
         :class:`Shape`.
@@ -424,6 +646,8 @@ class Shape(Polygon):
             contained. The resulting area where the neurons are generated is
             the :func:`~shapely.Shape.intersection` between of the current
             shape and the `container`.
+        on_area : str or list, optional (default: None)
+            Area(s) where the seeded neurons should be.
         xmin : double, optional (default: lowest abscissa of the Shape)
             Limit the area where neurons will be seeded to the region on the
             right of `xmin`.
@@ -440,20 +664,28 @@ class Shape(Polygon):
             Unit in which the positions of the neurons will be returned, among
             'um', 'mm', 'cm', 'dm', 'm'.
 
+        Note
+        ----
+        If both `container` and `on_area` are provided, the intersection of
+        the two is used.
+
         Returns
         -------
         positions : array of double with shape (N, 2)
         '''
         positions = None
-        if self._parent is not None:
+        if neurons is None and self._parent is not None:
             neurons = self._parent.node_nb()
         if neurons is None:
             raise ValueError("`neurons` cannot be None if `parent` is None.")
+        if on_area is not None:
+            if not hasattr(on_area, '__iter__'):
+                on_area = [on_area]
         
         min_x, min_y, max_x, max_y = self.bounds
 
-        custom_shape = False
-        if container is None:
+        custom_shape = (container is not None)
+        if container is None and on_area is None:
             # set min/max
             if xmin is None:
                 xmin = -np.inf
@@ -491,8 +723,19 @@ class Shape(Polygon):
                 custom_shape = True
                 container = Polygon([(min_x, min_y), (min_x, max_y),
                                      (max_x, max_y), (max_x, min_y)])
-        else:
+        elif on_area is not None:
             custom_shape = True
+            area_shape   = Polygon()
+            for area in on_area:
+                area_shape = area_shape.union(self._areas[area])
+            if container is not None:
+                print("container was not None.")
+                container = container.intersection(area_shape)
+            else:
+                container = area_shape
+            assert container.area > 0, "`container` and `on_area` have " +\
+                                       "empty intersection."
+
         # enter here only if Polygon or `container` is not None
         if custom_shape:
             seed_area = self.intersection(container)
@@ -516,6 +759,29 @@ class Shape(Polygon):
             positions *= conversion_magnitude(unit, self._unit)
 
         return positions
+
+    def contains_neurons(self, positions):
+        '''
+        Check whether the neurons are contained in the shape.
+
+        .. versionadded:: 0.4
+
+        Parameters
+        ----------
+        positions : point or 2D-array of shape (N, 2)
+
+        Returns
+        -------
+        contained : bool or 1D boolean array of length N
+            True if the neuron is contained, False otherwise.
+        '''
+        if np.shape(positions) == (len(positions), 2):
+            contained = []
+            for pos in positions:
+                contained.append(self.contains(Point(*pos)))
+            return np.array(contained, dtype=bool)
+        else:
+            return self.contains(Point(*positions))
 
 
 class Area(Shape):
@@ -549,22 +815,27 @@ class Area(Shape):
         -------
         :class:`Area` object.
         '''
+        obj    = None
         g_type = None
         if isinstance(shape, MultiPolygon):
             g_type = "MultiPolygon"
-        elif isinstance(shape, Polygon):
+        elif isinstance(shape, (Polygon, Shape, Area)):
             g_type = "Polygon"
         else:
             raise TypeError("Expected a Polygon or MultiPolygon object.")
         # find the scaling factor
         scaling = 1.
         if None not in (min_x, max_x):
-            ext = np.array(shape.exterior.coords)
-            leftmost = np.min(ext[:, 0])
-            rightmost = np.max(ext[:, 0])
-            scaling = (max_x - min_x) / (rightmost - leftmost)
-        # create the newly scaled shape and convert it to Shape
-        obj            = scale(shape, scaling, scaling)
+            ext        = np.array(shape.exterior.coords)
+            leftmost   = np.min(ext[:, 0])
+            rightmost  = np.max(ext[:, 0])
+            scaling    = (max_x - min_x) / (rightmost - leftmost)
+            obj        = scale(shape, scaling, scaling)
+        else:
+            if g_type == "Polygon":
+                obj    = Polygon(shape)
+            else:
+                obj    = MultiPolygon(shape)
         obj.__class__  = cls
         obj._parent    = None
         obj._unit      = unit

@@ -99,3 +99,31 @@ def _insert_area(container, area_name, shape, height, properties):
         container._areas[area_name] = Area.from_shape(
                 shape, height=height, name=area_name, properties=properties)
             
+
+def _backup_contains(x, y, shape):
+    try:
+        x = np.array(x)
+        y = np.array(y)
+    except:
+        pass
+    if shape.geom_type == "Disk":
+        x0, y0           = shape.centroid
+        xmin, _, xmax, _ = shape.bounds
+        radius = 0.5*(xmax - xmin)
+        return np.less_equal(np.linalg.norm([x - x0, y - y0], axis=0), radius)
+    elif shape.geom_type == "Ellipse":
+        xmin, ymin, xmax, ymax = shape.bounds
+        a      = 0.5*(xmax - xmin)
+        b      = 0.5*(ymax - ymin)
+        x0, y0 = shape.centroid
+        return np.less_equal(np.square(x-x0) / a + np.square(y-y0) / b, 1.)
+    elif shape.geom_type == "Rectangle":
+        xmin, ymin, xmax, ymax = shape.bounds
+        contained  = np.less_equal(x, xmax)
+        contained *= np.greater_equal(x, xmin)
+        contained *= np.less_equal(y, ymax)
+        contained *= np.greater_equal(y, ymin)
+        return contained
+    else:
+        raise TypeError("Invalid Shape type: {}.".format(shape.geom_type))
+        

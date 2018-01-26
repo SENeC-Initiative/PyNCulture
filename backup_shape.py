@@ -28,6 +28,8 @@ import numpy as np
 from numpy.random import uniform
 import scipy.spatial as sptl
 
+from .tools import _backup_contains
+
 
 class _Path:
 
@@ -158,7 +160,7 @@ class BackupShape:
 
     @classmethod
     def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None,
-             interpolate=50):
+                interpolate=50):
         '''
         Generate a disk of given radius and center (`centroid`).
 
@@ -374,3 +376,29 @@ class BackupShape:
             positions *= conversion_magnitude(unit, self._unit)
 
         return positions
+
+    def add_hole(self, *args, **kwargs):
+        raise NotImplementedError("Not available with backup shape.")
+
+    def random_obstacles(self, *args, **kwargs):
+        raise NotImplementedError("Not available with backup shape.")
+
+    def contains_neurons(self, positions):
+        '''
+        Check whether the neurons are contained in the shape.
+
+        .. versionadded:: 0.4
+
+        Parameters
+        ----------
+        positions : point or 2D-array of shape (N, 2)
+
+        Returns
+        -------
+        contained : bool or 1D boolean array of length N
+            True if the neuron is contained, False otherwise.
+        '''
+        if np.shape(positions) == (len(positions), 2):
+            return _backup_contains(positions[:, 0], positions[:, 1], self)
+        else:
+            return _backup_contains(positions[0], positions[1], self)

@@ -74,23 +74,27 @@ except ImportError:
 from .tools import pop_largest
 
 
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 
 
 # -------------------- #
 # Define I/O functions #
 # -------------------- #
 
-try:
-    import shapely
-    from . import shape_io
-    from .shape_io import *
-except ImportError:
-    def culture_from_file(*args, **kwargs):
-        raise RuntimeError("This function requires 'shapely' to work.")
+def culture_from_file(*args, **kwargs):
+    raise RuntimeError("This function requires 'shapely' to work.")
 
-    def shapes_from_file(*args, **kwargs):
-        raise RuntimeError("This function requires 'shapely' to work.")    
+
+def shapes_from_file(*args, **kwargs):
+    raise RuntimeError("This function requires 'shapely' to work.")
+
+
+if _shapely_support:
+    from . import shape_io
+    from .shape_io import culture_from_file as cff
+    from .shape_io import shapes_from_file as sff
+    culture_from_file = cff
+    shapes_from_file = sff
 
 
 __all__ = ["Shape", "culture_from_file", "pop_largest", "shapes_from_file"]
