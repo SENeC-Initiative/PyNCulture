@@ -74,7 +74,7 @@ except ImportError:
 from .tools import pop_largest
 
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 
 # -------------------- #

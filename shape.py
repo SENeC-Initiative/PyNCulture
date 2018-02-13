@@ -537,8 +537,8 @@ class Shape(Polygon):
 
         for i in range(on_width):
             for j in range(on_height):
-                x = xmin + (i + x_offset)*form_width
-                y = ymin + (j + y_offset)*form_height
+                x = xmin + x_offset + i*form_width
+                y = ymin + y_offset + j*form_height
                 locations.append((x, y))
 
         # get elected locations
@@ -597,7 +597,7 @@ class Shape(Polygon):
                 new_form = new_form.buffer(etching)
             self.add_hole(new_form)
         else:
-            if same_prop:
+            if np.all(same_prop):
                 # potentially contiguous areas
                 new_form = Polygon()
                 h        = next(iter(heights))
