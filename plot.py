@@ -109,7 +109,7 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
                     if prop < mean:
                         color       = "black"
                         local_alpha = alpha * (prop - mean) / (low - mean)
-                    else:
+                    elif prop > mean:
                         color       = "white"
                         local_alpha = alpha * (prop - mean) / (high - mean)
                     # contour
