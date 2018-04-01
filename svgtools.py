@@ -111,6 +111,15 @@ def _build_struct(svg, container, elt_type, elt_properties):
             container.append((path, trans))
         else:
             struct = {}
+            if elt.hasAttribute("transform"):
+                trans = elt.getAttribute('transform')
+                if trans.startswith("matrix"):
+                    start = trans.find("(") + 1
+                    stop  = trans.find(")")
+                    trans = [float(f) for f in trans[start:stop].split(",")]
+                    struct["matrix"] = trans
+                else:
+                    raise RuntimeError("Uknown transform: " + trans)
             for item in elt_properties:
                 struct[item] = float(elt.getAttribute(item))
             if global_translate is not None:
@@ -146,7 +155,10 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
         container = Polygon(shell, holes=holes)
         if instructions[1] is not None:
             trans     = instructions[1]
-            trans[-1] = -53.384887
+            #~ trans[-1] = -53.384887
+            #~ minx, miny, maxx, maxy = container.bounds
+            #~ trans[0] = 0.5*(minx+maxx)
+            #~ trans[1] = 0.5*(miny+maxy)
             container = affine_transform(container, trans)
         shell = np.array(container.exterior.coords)
     elif elt_type == "ellipse":  # build ellipses
@@ -169,6 +181,9 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
             container = translate(container, *instructions["translate"])
     else:
         raise RuntimeError("Unexpected element type: '{}'.".format(elt_type))
+
+    if elt_type != "path" and "matrix" in instructions:
+        container = affine_transform(container, instructions["matrix"])
 
     if return_points:
         if len(shell) == 0:
