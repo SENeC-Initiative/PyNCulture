@@ -151,17 +151,17 @@ class Shape(Polygon):
         return obj
 
     @staticmethod
-    def from_wtk(wtk, min_x=None, max_x=None, unit='um', parent=None,
+    def from_wkt(wtk, min_x=None, max_x=None, unit='um', parent=None,
                  default_properties=None):
         '''
-        Create a shape from a WTK string.
+        Create a shape from a WKT string.
 
         .. versionadded:: 0.2
 
         Parameters
         ----------
         wtk : str
-            The WTK string.
+            The WKT string.
         min_x : float, optional (default: -5000.)
             Absolute horizontal position of the leftmost point in the
             environment in `unit` If None, no rescaling occurs.
@@ -438,13 +438,15 @@ class Shape(Polygon):
                 properties = area.properties
             else:
                 properties = {}
-        # create the area
-        _insert_area(self, name, intersection, height, properties)
         # update the default area
         default_area = self._areas["default_area"]
         new_default = default_area.difference(intersection)
-        _insert_area(self, "default_area", new_default, default_area.height,
-                     default_area.properties)
+        # check that we do not add an area containing default
+        if not new_default.is_empty:
+            _insert_area(self, "default_area", new_default,
+                         default_area.height, default_area.properties)
+            # create the area
+            _insert_area(self, name, intersection, height, properties)
 
     def add_hole(self, hole):
         '''
@@ -729,7 +731,6 @@ class Shape(Polygon):
             for area in on_area:
                 area_shape = area_shape.union(self._areas[area])
             if container is not None:
-                print("container was not None.")
                 container = container.intersection(area_shape)
             else:
                 container = area_shape
@@ -891,7 +892,9 @@ class Area(Shape):
 
     @property
     def properties(self):
-        return self._prop
+        p = self._prop.copy()
+        p["height"] = self.height
+        return p
 
     def add_subshape(self, subshape, position, unit='um'):
         raise NotImplementedError("Areas cannot be modified.")
