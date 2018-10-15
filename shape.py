@@ -152,14 +152,17 @@ class Shape(Polygon):
                 obj    = Polygon(polygon)
             else:
                 obj    = MultiPolygon(polygon)
-        obj.__class__  = Shape
-        obj._parent    = None
-        obj._unit      = unit
-        obj._geom_type = g_type
+
+        obj.__class__         = Shape
+        obj._parent           = None
+        obj._unit             = unit
+        obj._geom_type        = g_type
+        obj._return_quantity = False
         obj._areas = {
             "default_area": Area.from_shape(obj, name="default_area",
                                             properties=default_properties)
         }
+
         return obj
 
     @staticmethod
@@ -382,6 +385,9 @@ class Shape(Polygon):
                                 holes[i] = [q.m_as(unit) for q in h]
                         except:
                             pass
+
+        self._return_quantity = False
+
         self._parent    = weakref.proxy(parent) if parent is not None else None
         self._unit      = unit
         self._geom_type = 'Polygon'
@@ -439,7 +445,15 @@ class Shape(Polygon):
             if k.find("default_area") != 0
         }
         return areas
-        
+
+    @property
+    def return_quantity(self):
+        '''
+        Whether `seed_neurons` returns positions with units by default.
+
+        .. versionadded:: 0.5
+        '''
+        return self._return_quantity
 
     def add_area(self, area, height=None, name=None, properties=None,
                  override=False):
@@ -710,9 +724,29 @@ class Shape(Polygon):
         ''' Set the parent :class:`nngt.Graph`. '''
         self._parent = weakref.proxy(parent) if parent is not None else None
 
+    def set_return_units(self, b):
+        '''
+        Set the default behavior for positions returned by `seed_neurons`.
+        If `True`, then the positions returned are quantities with units (from
+        the `pint` library), otherwise they are simply numpy arrays.
+
+        .. versionadded:: 0.5
+
+        Note
+        ----
+        `set_return_units(True)` requires `pint` to be installed on the system,
+        otherwise an error will be raised.
+        '''
+        if b and not _unit_support:
+            raise RuntimeError("Cannot set 'return_quantity' to True as "
+                               "`pint` is not installed.")
+        self._return_quantity = b
+        for area in self.areas.values():
+            area._return_quantity = b
+
     def seed_neurons(self, neurons=None, container=None, on_area=None,
                      xmin=None, xmax=None, ymin=None, ymax=None, soma_radius=0,
-                     unit=None, return_quantity=False):
+                     unit=None, return_quantity=None):
         '''
         Return the positions of the neurons inside the
         :class:`Shape`.
@@ -749,6 +783,9 @@ class Shape(Polygon):
             Whether the positions should be returned as ``pint.Quantity``
             objects (requires Pint); `unit` must be provided.
 
+        .. versionchanged:: 0.5
+            Accepts `pint` units and `return_quantity` argument.
+
         Note
         ----
         If both `container` and `on_area` are provided, the intersection of
@@ -759,10 +796,11 @@ class Shape(Polygon):
         positions : array of double with shape (N, 2) or `pint.Quantity` if
                     `return_quantity` is `True`.
         '''
+        return_quantity = (self._return_quantity
+                           if return_quantity is None else return_quantity)
+
         if return_quantity:
-            if unit is None:
-                raise ValueError("`unit` must not be None if "
-                                 "`return_quantity` is True.")
+            unit = self._unit if unit is None else unit
             if not _unit_support:
                 raise RuntimeError("`return_quantity` requested but Pint is "
                                    "not available. Please install it first.")
@@ -967,16 +1005,19 @@ class Area(Shape):
                 obj    = Polygon(shape)
             else:
                 obj    = MultiPolygon(shape)
-        obj.__class__  = cls
-        obj._parent    = None
-        obj._unit      = unit
-        obj._geom_type = g_type
-        obj.__class__  = Area
-        obj._area      = None
-        obj.height     = height
-        obj.name       = name
-        obj._prop      = _PDict(
+
+        obj.__class__        = cls
+        obj._parent          = None
+        obj._unit            = unit
+        obj._geom_type       = g_type
+        obj.__class__        = Area
+        obj._area            = None
+        obj.height           = height
+        obj.name             = name
+        obj._prop            = _PDict(
             {} if properties is None else deepcopy(properties))
+        obj._return_quantity = False
+
         return obj
 
     def __init__(self, shell, holes=None, unit='um', height=0.,

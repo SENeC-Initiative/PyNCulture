@@ -238,6 +238,8 @@ class BackupShape:
         self.interiors = []
         self._unit     = unit
 
+        self._return_quantity = False
+
         self._points      = None
         self._bounds      = None
         self._area        = None
@@ -285,8 +287,35 @@ class BackupShape:
     def geom_type(self):
         return self._geom_type
 
+    @property
+    def return_quantity(self):
+    '''
+    Whether `seed_neurons` returns positions with units by default.
+
+    .. versionadded:: 0.5
+    '''
+    return self._return_quantity
+
     def set_parent(self, parent):
         self._parent = weakref.proxy(parent) if parent is not None else None
+
+    def set_return_units(self, b):
+        '''
+        Set the default behavior for positions returned by `seed_neurons`.
+        If `True`, then the positions returned are quantities with units (from
+        the `pint` library), otherwise they are simply numpy arrays.
+
+        .. versionadded:: 0.5
+
+        Note
+        ----
+        `set_return_units(True)` requires `pint` to be installed on the system,
+        otherwise an error will be raised.
+        '''
+        if b and not _unit_support:
+            raise RuntimeError("Cannot set 'return_quantity' to True as "
+                               "`pint` is not installed.")
+        self._return_quantity = b
 
     def add_subshape(self, subshape, position, unit='um'):
         '''
@@ -341,11 +370,14 @@ class BackupShape:
         '''
         if self._parent is not None:
             neurons = self._parent.node_nb()
+
         positions = np.zeros((neurons, 2))
+
+        return_quantity = (self._return_quantity
+                           if return_quantity is None else return_quantity)
+
         if return_quantity:
-            if unit is None:
-                raise ValueError("`unit` must not be None if "
-                                 "`return_quantity` is True.")
+            unit = self._unit if unit is None else unit
             if not _unit_support:
                 raise RuntimeError("`return_quantity` requested but Pint is "
                                    "not available. Please install it first.")
