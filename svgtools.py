@@ -21,6 +21,7 @@
 from xml.dom.minidom import parse
 from svg.path import parse_path, CubicBezier, QuadraticBezier, Arc
 from itertools import chain
+from copy import deepcopy
 
 import shapely
 from shapely.affinity import scale, affine_transform, translate
@@ -48,6 +49,8 @@ _predefined = {
     'rect': ("x", "y", "width", "height")
 }
 
+_valid_nodes = _predefined.keys()
+
 
 def polygons_from_svg(filename, interpolate_curve=50, parent=None,
                       return_points=False):
@@ -55,8 +58,8 @@ def polygons_from_svg(filename, interpolate_curve=50, parent=None,
     Generate :class:`shapely.geometry.Polygon` objects from an SVG file.
     '''
     svg = parse(filename)
-    elt_structs = {k: [] for k in _predefined.keys()}
-    elt_points = {k: [] for k in _predefined.keys()}
+    elt_structs = {k: [] for k in _valid_nodes}
+    elt_points = {k: [] for k in _valid_nodes}
 
     # get the properties of all predefined elements
     for elt_type, elt_prop in _predefined.items():
@@ -82,59 +85,41 @@ def polygons_from_svg(filename, interpolate_curve=50, parent=None,
 # ----- #
 
 def _build_struct(svg, container, elt_type, elt_properties):
-    global_translate = None
-    root             = svg.documentElement
+    root    = svg.documentElement
 
-    if root.hasAttribute("transform"):
-        trans = root.getAttribute('transform')
-        if trans.startswith("translate"):
-            start = trans.find("(") + 1
-            stop  = trans.find(")")
-            global_translate = [float(f) for f in trans[start:stop].split(",")]
-        else:
-            raise RuntimeError("Uknown transform: " + trans)
+    for elt in root.getElementsByTagName(elt_type):
+        struct = {
+            "transf": [],
+            "transfdata": []
+        }
 
-    for elt in svg.getElementsByTagName(elt_type):
+        parent = elt.parentNode
+
+        while parent is not None:
+            _get_transform(parent, struct)
+            parent = parent.parentNode
+
+        _get_transform(elt, struct)
+        
         if elt_type == 'path':
-            #~ for s in elt.getAttribute('d').split('z'):
-                #~ if s:
-                    #~ container.append(s.lstrip() + 'z')
             path, trans = elt.getAttribute('d'), None
-            if elt.hasAttribute("transform"):
-                trans = elt.getAttribute('transform')
-                if trans.startswith("matrix"):
-                    start = trans.find("(") + 1
-                    stop  = trans.find(")")
-                    trans = [float(f) for f in trans[start:stop].split(",")]
-                else:
-                    raise RuntimeError("Uknown transform: " + trans)
-            container.append((path, trans))
+            struct["path"] = path
         else:
-            struct = {}
-            if elt.hasAttribute("transform"):
-                trans = elt.getAttribute('transform')
-                if trans.startswith("matrix"):
-                    start = trans.find("(") + 1
-                    stop  = trans.find(")")
-                    trans = [float(f) for f in trans[start:stop].split(",")]
-                    struct["matrix"] = trans
-                else:
-                    raise RuntimeError("Uknown transform: " + trans)
             for item in elt_properties:
                 struct[item] = float(elt.getAttribute(item))
-            if global_translate is not None:
-                struct["translate"] = global_translate
-            container.append(struct)
+
+        container.append(struct)
 
 
 def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
                   return_points=False):
     container = None
-    shell = []  # outer points defining the polygon's outer shell
-    holes = []  # inner points defining holes
+    shell     = []  # outer points defining the polygon's outer shell
+    holes     = []  # inner points defining holes
+    idx_start = 0
 
     if elt_type == "path":  # build polygons from custom paths
-        path_data = parse_path(instructions[0])
+        path_data = parse_path(instructions["path"])
         num_data  = len(path_data)
         if not path_data.closed:
             raise RuntimeError("Only closed shapes accepted.")
@@ -142,48 +127,48 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
         points = shell  # the first path is the outer shell?
         for j, item in enumerate(path_data):
             if isinstance(item, (Arc, CubicBezier, QuadraticBezier)):
-                for frac in np.linspace(0, 1, interpolate_curve):
+                istart = 1. / interpolate_curve
+                for frac in np.linspace(istart, 1, interpolate_curve):
                     points.append(
-                        (item.point(frac).real, -item.point(frac).imag))
+                        (item.point(frac).real, item.point(frac).imag))
             else:
-                points.append((item.start.real, -item.start.imag))
+                points.append((item.start.real, item.start.imag))
             # the shell is closed, so the rest defines holes
-            if item.end == start and j < len(path_data) - 1:
+            if item.end == start and j != idx_start and j < len(path_data) - 1:
                 holes.append([])
                 points = holes[-1]
                 start = path_data[j+1].start
+                idx_start = j+1
+        shell = np.array(shell)
         container = Polygon(shell, holes=holes)
-        if instructions[1] is not None:
-            trans     = instructions[1]
-            #~ trans[-1] = -53.384887
-            #~ minx, miny, maxx, maxy = container.bounds
-            #~ trans[0] = 0.5*(minx+maxx)
-            #~ trans[1] = 0.5*(miny+maxy)
-            container = affine_transform(container, trans)
-        shell = np.array(container.exterior.coords)
     elif elt_type == "ellipse":  # build ellipses
-        circle = Point((instructions["cx"], -instructions["cy"])).buffer(1)
+        circle = Point((instructions["cx"], instructions["cy"])).buffer(1)
         rx, ry = instructions["rx"], instructions["ry"]
         container = scale(circle, rx, ry)
-        if "translate" in instructions:
-            container = translate(container, *instructions["translate"])
     elif elt_type == "circle":   # build circles
         r = instructions["r"]
-        container = Point((instructions["cx"], -instructions["cy"])).buffer(r)
-        if "translate" in instructions:
-            container = translate(container, *instructions["translate"])
+        container = Point((instructions["cx"], instructions["cy"])).buffer(r)
     elif elt_type == "rect":     # build rectangles
-        x, y = instructions["x"], -instructions["y"]
-        w, h = instructions["width"], -instructions["height"]
+        x, y = instructions["x"], instructions["y"]
+        w, h = instructions["width"], instructions["height"]
         shell = np.array([(x, y), (x + w, y), (x + w, y + h), (x, y + h)])
         container = Polygon(shell)
-        if "translate" in instructions:
-            container = translate(container, *instructions["translate"])
     else:
         raise RuntimeError("Unexpected element type: '{}'.".format(elt_type))
 
-    if elt_type != "path" and "matrix" in instructions:
-        container = affine_transform(container, instructions["matrix"])
+    # transforms
+    nn, dd = instructions["transf"][::-1], instructions["transfdata"][::-1]
+    for name, data in zip(nn, dd):
+        if name == "matrix":
+            container = affine_transform(container, data)
+        elif name == "translate":
+            container = translate(container, *data)
+
+    # y axis is inverted in SVG, so make mirror transform
+    container = affine_transform(container, (1, 0, 0, -1, 0, 0))
+
+    if len(shell):
+        shell[:, 1] *= -1
 
     if return_points:
         if len(shell) == 0:
@@ -191,3 +176,27 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
         return container, shell
 
     return container
+
+
+def _get_transform(obj, tdict):
+    ''' Get the transformation properties and name into `tdict` '''
+    try:
+        if obj.hasAttribute("transform"):
+            trans = obj.getAttribute('transform')
+            if trans.startswith("translate"):
+                start = trans.find("(") + 1
+                stop  = trans.find(")")
+                tdict["transf"].append("translate")
+                tdict["transfdata"].append(
+                    [float(f) for f in trans[start:stop].split(",")])
+            elif trans.startswith("matrix"):
+                start = trans.find("(") + 1
+                stop  = trans.find(")")
+                trans = [float(f)
+                         for f in trans[start:stop].split(",")]
+                tdict["transf"].append("matrix")
+                tdict["transfdata"].append(trans)
+            else:
+                raise RuntimeError("Uknown transform: " + trans)
+    except:
+        pass

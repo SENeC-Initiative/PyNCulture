@@ -35,9 +35,9 @@ from shapely.geometry.base import geom_factory
 import numpy as np
 from numpy.random import uniform
 
-from . import __init__ as pnc
+from .units import _unit_support
 from .geom_utils import conversion_magnitude
-from .tools import pop_largest, _insert_area
+from .tools import indexable, pop_largest, _insert_area
 
 
 __all__ = ["Area", "Shape"]
@@ -91,6 +91,12 @@ class Shape(Polygon):
         default_properties : dict, optional (default: None)
             Default properties of the environment.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(min_x, Q_):
+                min_x = min_x.m_as(unit)
+            if isinstance(max_x, Q_):
+                max_x = max_x.m_as(unit)
         return pnc.culture_from_file(
                 filename,  min_x=min_x, max_x=max_x, unit=unit, parent=parent,
                 interpolate_curve=interpolate_curve,
@@ -120,6 +126,12 @@ class Shape(Polygon):
         default_properties : dict, optional (default: None)
             Default properties of the environment.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(min_x, Q_):
+                min_x = min_x.m_as(unit)
+            if isinstance(max_x, Q_):
+                max_x = max_x.m_as(unit)
         obj    = None
         g_type = None
         if isinstance(polygon, MultiPolygon):
@@ -140,14 +152,17 @@ class Shape(Polygon):
                 obj    = Polygon(polygon)
             else:
                 obj    = MultiPolygon(polygon)
-        obj.__class__  = Shape
-        obj._parent    = None
-        obj._unit      = unit
-        obj._geom_type = g_type
+
+        obj.__class__         = Shape
+        obj._parent           = None
+        obj._unit             = unit
+        obj._geom_type        = g_type
+        obj._return_quantity = False
         obj._areas = {
             "default_area": Area.from_shape(obj, name="default_area",
                                             properties=default_properties)
         }
+
         return obj
 
     @staticmethod
@@ -180,6 +195,12 @@ class Shape(Polygon):
         --------
         :func:`Shape.from_polygon` for details about the other arguments.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(min_x, Q_):
+                min_x = min_x.m_as(unit)
+            if isinstance(max_x, Q_):
+                max_x = max_x.m_as(unit)
         p = loads(wtk)
         return Shape.from_polygon(
             p, min_x=min_x, max_x=max_x, unit=unit, parent=parent,
@@ -212,6 +233,16 @@ class Shape(Polygon):
         shape : :class:`Shape`
             Rectangle shape.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(width, Q_):
+                width = width.m_as(unit)
+            if isinstance(height, Q_):
+                height = height.m_as(unit)
+            if isinstance(centroid, Q_):
+                centroid = centroid.m_as(unit)
+            elif isinstance(centroid[0], Q_):
+                centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         half_w = 0.5 * width
         half_h = 0.5 * height
         centroid = np.array(centroid)
@@ -249,6 +280,14 @@ class Shape(Polygon):
         shape : :class:`Shape`
             Rectangle shape.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(radius, Q_):
+                radius = radius.m_as(unit)
+            if isinstance(centroid, Q_):
+                centroid = centroid.m_as(unit)
+            elif isinstance(centroid[0], Q_):
+                centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         centroid = np.array(centroid)
         minx = centroid[0] - radius
         maxx = centroid[0] + radius
@@ -284,6 +323,16 @@ class Shape(Polygon):
         shape : :class:`Shape`
             Rectangle shape.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(radii, Q_):
+                radii = radii.m_as(unit)
+            elif isinstance(radii[0], Q_):
+                radii = (radii[0].m_as(unit), radii[1].m_as(unit))
+            if isinstance(centroid, Q_):
+                centroid = centroid.m_as(unit)
+            elif isinstance(centroid[0], Q_):
+                centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         centroid = np.array(centroid)
         rx, ry = radii
         minx = centroid[0] - rx
@@ -316,6 +365,29 @@ class Shape(Polygon):
         default_properties : dict, optional (default: None)
             Default properties of the environment.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(shell, Q_):
+                shell = shell.m_as(unit)
+            else:
+                try:
+                    if isinstance(shell[0], Q_):
+                        shell = [q.m_as(unit) for q in shell]
+                except:
+                    pass
+            if holes is not None:
+                for i, h in enumerate(holes):
+                    if isinstance(h, Q_):
+                        h = h.m_as(unit)
+                    else:
+                        try:
+                            if isinstance(h[0], Q_):
+                                holes[i] = [q.m_as(unit) for q in h]
+                        except:
+                            pass
+
+        self._return_quantity = False
+
         self._parent    = weakref.proxy(parent) if parent is not None else None
         self._unit      = unit
         self._geom_type = 'Polygon'
@@ -373,7 +445,15 @@ class Shape(Polygon):
             if k.find("default_area") != 0
         }
         return areas
-        
+
+    @property
+    def return_quantity(self):
+        '''
+        Whether `seed_neurons` returns positions with units by default.
+
+        .. versionadded:: 0.5
+        '''
+        return self._return_quantity
 
     def add_area(self, area, height=None, name=None, properties=None,
                  override=False):
@@ -401,6 +481,11 @@ class Shape(Polygon):
         # check that area and self overlap
         assert self.overlaps(area) or self.contains(area), "`area` must be " +\
             "contained or at least overlap with the current shape."
+        # check units
+        if _unit_support:
+            from .units import Q_
+            if isinstance(height, Q_):
+                height = height.m_as(self.unit)
         # check whether this area intersects with existing areas other than
         # the default area.
         intersection = self.intersection(area)
@@ -499,6 +584,15 @@ class Shape(Polygon):
             for 
         '''
         form_center = None
+
+        if heights is not None:
+            if _unit_support:
+                from .units import Q_
+                if isinstance(heights, Q_):
+                    heights = heights.m_as(self.unit)
+                elif indexable(heights):
+                    if isinstance(heights[0], Q_):
+                        heights = [h.m_as(self.unit) for h in heights]
 
         # check n
         if not isinstance(n, np.integer):
@@ -630,9 +724,29 @@ class Shape(Polygon):
         ''' Set the parent :class:`nngt.Graph`. '''
         self._parent = weakref.proxy(parent) if parent is not None else None
 
+    def set_return_units(self, b):
+        '''
+        Set the default behavior for positions returned by `seed_neurons`.
+        If `True`, then the positions returned are quantities with units (from
+        the `pint` library), otherwise they are simply numpy arrays.
+
+        .. versionadded:: 0.5
+
+        Note
+        ----
+        `set_return_units(True)` requires `pint` to be installed on the system,
+        otherwise an error will be raised.
+        '''
+        if b and not _unit_support:
+            raise RuntimeError("Cannot set 'return_quantity' to True as "
+                               "`pint` is not installed.")
+        self._return_quantity = b
+        for area in self.areas.values():
+            area._return_quantity = b
+
     def seed_neurons(self, neurons=None, container=None, on_area=None,
                      xmin=None, xmax=None, ymin=None, ymax=None, soma_radius=0,
-                     unit=None):
+                     unit=None, return_quantity=None):
         '''
         Return the positions of the neurons inside the
         :class:`Shape`.
@@ -665,6 +779,12 @@ class Shape(Polygon):
         unit : string (default: None)
             Unit in which the positions of the neurons will be returned, among
             'um', 'mm', 'cm', 'dm', 'm'.
+        return_quantity : bool, optional (default: False)
+            Whether the positions should be returned as ``pint.Quantity``
+            objects (requires Pint); `unit` must be provided.
+
+        .. versionchanged:: 0.5
+            Accepts `pint` units and `return_quantity` argument.
 
         Note
         ----
@@ -673,8 +793,30 @@ class Shape(Polygon):
 
         Returns
         -------
-        positions : array of double with shape (N, 2)
+        positions : array of double with shape (N, 2) or `pint.Quantity` if
+                    `return_quantity` is `True`.
         '''
+        return_quantity = (self._return_quantity
+                           if return_quantity is None else return_quantity)
+
+        if return_quantity:
+            unit = self._unit if unit is None else unit
+            if not _unit_support:
+                raise RuntimeError("`return_quantity` requested but Pint is "
+                                   "not available. Please install it first.")
+        if _unit_support:
+            from .units import Q_
+            if isinstance(xmin, Q_):
+                xmin = xmin.m_as(unit)
+            if isinstance(xmax, Q_):
+                xmax = xmax.m_as(unit)
+            if isinstance(ymin, Q_):
+                ymin = ymin.m_as(unit)
+            if isinstance(ymax, Q_):
+                ymax = ymax.m_as(unit)
+            if isinstance(soma_radius, Q_):
+                soma_radius = soma_radius.m_as(unit)
+
         positions = None
         if neurons is None and self._parent is not None:
             neurons = self._parent.node_nb()
@@ -759,6 +901,10 @@ class Shape(Polygon):
         if unit is not None and unit != self._unit:
             positions *= conversion_magnitude(unit, self._unit)
 
+        if _unit_support and return_quantity:
+            from .units import Q_
+            positions *= Q_(unit)
+
         return positions
 
     def contains_neurons(self, positions):
@@ -776,6 +922,19 @@ class Shape(Polygon):
         contained : bool or 1D boolean array of length N
             True if the neuron is contained, False otherwise.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(positions, Q_):
+                positions = positions.m_as(self._unit)
+            elif len(positions):
+                if isinstance(positions[0], Q_):
+                    positions = np.array(
+                        [q.m_as(self._unit) for q in positions])
+                elif isinstance(positions[0][0], Q_):
+                    positions = np.array(
+                        [[q.m_as(self._unit) for q in row]
+                         for row in positions])
+
         if np.shape(positions) == (len(positions), 2):
             contained = []
             for pos in positions:
@@ -816,6 +975,15 @@ class Area(Shape):
         -------
         :class:`Area` object.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(height, Q_):
+                height = height.m_as(unit)
+            if isinstance(min_x, Q_):
+                min_x = min_x.m_as(unit)
+            if isinstance(max_x, Q_):
+                max_x = max_x.m_as(unit)
+
         obj    = None
         g_type = None
         if isinstance(shape, MultiPolygon):
@@ -837,16 +1005,19 @@ class Area(Shape):
                 obj    = Polygon(shape)
             else:
                 obj    = MultiPolygon(shape)
-        obj.__class__  = cls
-        obj._parent    = None
-        obj._unit      = unit
-        obj._geom_type = g_type
-        obj.__class__  = Area
-        obj._area      = None
-        obj.height     = height
-        obj.name       = name
-        obj._prop      = _PDict(
+
+        obj.__class__        = cls
+        obj._parent          = None
+        obj._unit            = unit
+        obj._geom_type       = g_type
+        obj.__class__        = Area
+        obj._area            = None
+        obj.height           = height
+        obj.name             = name
+        obj._prop            = _PDict(
             {} if properties is None else deepcopy(properties))
+        obj._return_quantity = False
+
         return obj
 
     def __init__(self, shell, holes=None, unit='um', height=0.,
@@ -874,6 +1045,10 @@ class Area(Shape):
             are modified by the substrate. Since this describes how the default
             property is modulated, all values must be positive reals or NaN.
         '''
+        if _unit_support:
+            from .units import Q_
+            if isinstance(height, Q_):
+                height = height.m_as(unit)
         super(Area, self).__init__(shell, holes=holes, unit=unit, parent=None)
         self._areas = None
         self.height = height

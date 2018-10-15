@@ -20,9 +20,23 @@
 
 """ Tools for PyNCulture """
 
+try:
+    from collections.abc import Container as _container
+except:
+    from collections import Container as _container
+
 import numpy as np
 
 from . import _shapely_support
+
+
+def indexable(obj):
+    '''
+    Returns true for any iterable which is not a string or byte sequence.
+    '''
+    if hasattr(obj, "__getitem__"):
+        return True
+    return False
 
 
 def pop_largest(shapes):

@@ -28,6 +28,7 @@ import numpy as np
 from numpy.random import uniform
 import scipy.spatial as sptl
 
+from .units import _unit_support
 from .tools import _backup_contains
 
 
@@ -87,6 +88,8 @@ class BackupShape:
         unit : string (default: 'um')
             Unit in the metric system among 'um' (:math:`\mu m`), 'mm', 'cm',
             'dm', 'm'.
+            When working with `pint`, length provided in another unit are
+            automatically converted.
         parent : :class:`nngt.Graph` or subclass
             The graph which is associated to this Shape.
 
@@ -96,6 +99,16 @@ class BackupShape:
             Rectangle shape.
         '''
         shape = cls(unit=unit, parent=parent)
+        if _unit_support:
+            from .units import Q_
+            if isinstance(width, Q_):
+                width = width.m_as(unit)
+            if isinstance(height, Q_):
+                height = height.m_as(unit)
+            if isinstance(centroid, Q_):
+                centroid = centroid.m_as(unit)
+            elif isinstance(centroid[0], Q_):
+                centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         half_w = 0.5 * width
         half_h = 0.5 * height
         centroid = np.array(centroid)
@@ -142,6 +155,14 @@ class BackupShape:
             Rectangle shape.
         '''
         shape = cls(unit=unit, parent=parent)
+        if _unit_support:
+            from .units import Q_
+            if isinstance(radius, Q_):
+                radius = radius.m_as(unit)
+            if isinstance(centroid, Q_):
+                centroid = centroid.m_as(unit)
+            elif isinstance(centroid[0], Q_):
+                centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         centroid = np.array(centroid)
         # generate the points
         points = [(centroid[0] + radius*np.cos(theta),
@@ -185,6 +206,16 @@ class BackupShape:
             Rectangle shape.
         '''
         ellipse = cls(unit=unit, parent=parent)
+        if _unit_support:
+            from .units import Q_
+            if isinstance(radii, Q_):
+                radii = radii.m_as(unit)
+            elif isinstance(radii[0], Q_):
+                radii = (radii[0].m_as(unit), radii[1].m_as(unit))
+            if isinstance(centroid, Q_):
+                centroid = centroid.m_as(unit)
+            elif isinstance(centroid[0], Q_):
+                centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         centroid = np.array(centroid)
         rx, ry = radii
         points = [(centroid[0] + rx*np.cos(theta),
@@ -206,6 +237,9 @@ class BackupShape:
         self.exterior  = _Path(self)
         self.interiors = []
         self._unit     = unit
+
+        self._return_quantity = False
+
         self._points      = None
         self._bounds      = None
         self._area        = None
@@ -253,8 +287,35 @@ class BackupShape:
     def geom_type(self):
         return self._geom_type
 
+    @property
+    def return_quantity(self):
+        '''
+        Whether `seed_neurons` returns positions with units by default.
+
+        .. versionadded:: 0.5
+        '''
+        return self._return_quantity
+
     def set_parent(self, parent):
         self._parent = weakref.proxy(parent) if parent is not None else None
+
+    def set_return_units(self, b):
+        '''
+        Set the default behavior for positions returned by `seed_neurons`.
+        If `True`, then the positions returned are quantities with units (from
+        the `pint` library), otherwise they are simply numpy arrays.
+
+        .. versionadded:: 0.5
+
+        Note
+        ----
+        `set_return_units(True)` requires `pint` to be installed on the system,
+        otherwise an error will be raised.
+        '''
+        if b and not _unit_support:
+            raise RuntimeError("Cannot set 'return_quantity' to True as "
+                               "`pint` is not installed.")
+        self._return_quantity = b
 
     def add_subshape(self, subshape, position, unit='um'):
         '''
@@ -272,7 +333,7 @@ class BackupShape:
         raise NotImplementedError("Not available with backup shape.")
 
     def seed_neurons(self, neurons=None, xmin=None, xmax=None, ymin=None,
-                     ymax=None, unit=None):
+                     ymax=None, unit=None, return_quantity=False):
         '''
         Return the positions of the neurons inside the
         :class:`Shape`.
@@ -298,14 +359,38 @@ class BackupShape:
         unit : string (default: None)
             Unit in which the positions of the neurons will be returned, among
             'um', 'mm', 'cm', 'dm', 'm'.
+        return_quantity : bool, optional (default: False)
+            Whether the positions should be returned as ``pint.Quantity``
+            objects (requires Pint); `unit` must be provided.
 
         Returns
         -------
-        positions : array of double with shape (N, 2)
+        positions : array of double with shape (N, 2) or `pint.Quantity` if
+                    `return_quantity` is `True`.
         '''
         if self._parent is not None:
             neurons = self._parent.node_nb()
+
         positions = np.zeros((neurons, 2))
+
+        return_quantity = (self._return_quantity
+                           if return_quantity is None else return_quantity)
+
+        if return_quantity:
+            unit = self._unit if unit is None else unit
+            if not _unit_support:
+                raise RuntimeError("`return_quantity` requested but Pint is "
+                                   "not available. Please install it first.")
+        if _unit_support:
+            from .units import Q_
+            if isinstance(xmin, Q_):
+                xmin = xmin.m_as(unit)
+            if isinstance(xmax, Q_):
+                xmax = xmax.m_as(unit)
+            if isinstance(ymin, Q_):
+                ymin = ymin.m_as(unit)
+            if isinstance(ymax, Q_):
+                ymax = ymax.m_as(unit)
         # set min/max
         if xmin is None:
             xmin = -np.inf
@@ -374,6 +459,10 @@ class BackupShape:
 
         if unit is not None and unit != self._unit:
             positions *= conversion_magnitude(unit, self._unit)
+
+        if _unit_support and return_quantity:
+            from .units import Q_
+            positions *= Q_(unit)
 
         return positions
 
