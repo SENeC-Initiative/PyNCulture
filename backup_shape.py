@@ -289,12 +289,12 @@ class BackupShape:
 
     @property
     def return_quantity(self):
-    '''
-    Whether `seed_neurons` returns positions with units by default.
+        '''
+        Whether `seed_neurons` returns positions with units by default.
 
-    .. versionadded:: 0.5
-    '''
-    return self._return_quantity
+        .. versionadded:: 0.5
+        '''
+        return self._return_quantity
 
     def set_parent(self, parent):
         self._parent = weakref.proxy(parent) if parent is not None else None
