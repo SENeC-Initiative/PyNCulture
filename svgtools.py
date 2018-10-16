@@ -166,13 +166,9 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
 
     # y axis is inverted in SVG, so make mirror transform
     container = affine_transform(container, (1, 0, 0, -1, 0, 0))
-
-    if len(shell):
-        shell[:, 1] *= -1
+    shell     = np.array(container.exterior.coords)
 
     if return_points:
-        if len(shell) == 0:
-            shell = np.array(container.exterior.coords)
         return container, shell
 
     return container

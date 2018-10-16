@@ -35,9 +35,13 @@ from shapely.geometry.base import geom_factory
 import numpy as np
 from numpy.random import uniform
 
-from .units import _unit_support
 from .geom_utils import conversion_magnitude
 from .tools import indexable, pop_largest, _insert_area
+
+try:
+    from .units import _unit_support
+except ImportError:
+    _unit_support = False
 
 
 __all__ = ["Area", "Shape"]

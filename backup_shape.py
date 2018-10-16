@@ -28,8 +28,12 @@ import numpy as np
 from numpy.random import uniform
 import scipy.spatial as sptl
 
-from .units import _unit_support
 from .tools import _backup_contains
+
+try:
+    from .units import _unit_support
+except ImportError:
+    _unit_support = False
 
 
 class _Path:

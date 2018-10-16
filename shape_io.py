@@ -30,6 +30,11 @@ from shapely.geometry import MultiPolygon
 from .shape import Shape
 from .tools import pop_largest
 
+try:
+    from .units import _unit_support
+except ImportError:
+    _unit_support = False
+
 
 # --------------------- #
 # Check SVG/DXF support #
@@ -99,6 +104,13 @@ def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
     '''
     polygons, points = None, None
 
+    if _unit_support:
+        from .units import Q_
+        if isinstance(min_x, Q_):
+            min_x = min_x.m_as(unit)
+        if isinstance(max_x, Q_):
+            max_x = max_x.m_as(unit)
+
     if filename.endswith(".svg") and _svg_support:
         polygons, points = svgtools.polygons_from_svg(
             filename, parent=parent, interpolate_curve=interpolate_curve,
@@ -132,20 +144,16 @@ def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
     max_y_val = -np.inf
 
     # find smallest and highest x values
-    for elt_type, elements in points.items():
-        for i, elt_points in enumerate(elements):
-            min_x_tmp = elt_points[:, 0].min()
-            max_x_tmp = elt_points[:, 0].max()
-            if min_x_tmp < min_x_val:
-                min_x_val = min_x_tmp
-            if max_x_tmp > max_x_val:
-                max_x_val = max_x_tmp
-            min_y_tmp = elt_points[:, 1].min()
-            max_y_tmp = elt_points[:, 1].max()
-            if min_y_tmp < min_y_val:
-                min_y_val = min_y_tmp
-            if max_y_tmp > max_y_val:
-                max_y_val = max_y_tmp
+    for p in polygons:
+        min_x_tmp, min_y_tmp, max_x_tmp, max_y_tmp = p.bounds
+        if min_x_tmp < min_x_val:
+            min_x_val = min_x_tmp
+        if max_x_tmp > max_x_val:
+            max_x_val = max_x_tmp
+        if min_y_tmp < min_y_val:
+            min_y_val = min_y_tmp
+        if max_y_tmp > max_y_val:
+            max_y_val = max_y_tmp
 
     # set optional shifts if center will change
     y_center     = 0.5*(max_y_val + min_y_val)
