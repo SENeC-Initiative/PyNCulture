@@ -52,7 +52,8 @@ try:
         extras_require = {
             'dxfgrabber': 'dxfgrabber',
             'shapely': 'shapely',
-            'svgtools': 'svgtools'
+            'svgtools': 'svgtools',
+            'PyOpenGL': 'PyOpenGL',
         },
 
         # Metadata

@@ -60,6 +60,8 @@ Content
 
 import logging
 
+# shapely support
+
 try:
     import shapely
     from shapely import speedups
@@ -74,7 +76,7 @@ except ImportError:
 from .tools import pop_largest
 
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 # -------------------- #
