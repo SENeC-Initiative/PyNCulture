@@ -204,7 +204,7 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
     rectangles, circles, ellipses, polygons, and closed curves.
     The objects do not have to be simply connected.
 
-    .. versionchanged:: 0.5.2
+    .. versionchanged:: 0.6
         Added `internal_shapes_as` and `other_properties` keyword parameters.
 
     Parameters
