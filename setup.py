@@ -57,7 +57,7 @@ try:
 
         # Metadata
         url = 'https://github.com/Silmathoron/PyNCulture',
-        author = 'Tanguy Fardet',
+        author = 'Tanguy Fardet, Samuel Bottani',
         author_email = 'tanguy.fardet@univ-paris-diderot.fr',
         license = 'GPL3',
         keywords = 'neuronal cultures geometry'

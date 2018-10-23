@@ -94,7 +94,7 @@ def _insert_area(container, area_name, shape, height, properties):
         # behavior differs for default_area (never deleted) and other areas
         if area_name == "default_area":
             largest = pop_largest(shape)
-            count   = 1
+            count   = len(container.default_areas)
             for p in shape:
                 new_name = area_name
                 if p != largest:

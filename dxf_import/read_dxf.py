@@ -96,7 +96,7 @@ class DXF:
         if not ent:
             ent = self.dxf.entities
         for e in ent:
-            if self.layers and e.layer not in self.layers:
+            if self.layers and (e.layer not in self.layers):
                 continue
             elif e.dxftype in self.ignore:
                 continue
@@ -146,14 +146,12 @@ class DXF:
             interpolate_curve = self.interp
 
         shapes = []
-                
-        #~ from descartes.patch import PolygonPatch
-        #~ import matplotlib.pyplot as plt
 
         for e in self.entities():
             if e.dxftype == 'LINE':
-                raise RuntimeError('Only closed shapes are allowed, not open '
-                                   'lines.')
+                logging.warning(
+                    'Open line in dxf file ignored; only closed shapes are '
+                    'considered.')
             elif e.dxftype == 'CIRCLE':
                 c = homcoord.Pt(e.center[:2])
                 rayon = e.radius
@@ -172,8 +170,12 @@ class DXF:
                     point = homcoord.Pt(vertex.location[:2])
                     pts_polygon.append((point.x, point.y))
                 shapes.append(Polygon(pts_polygon))
+            elif e.dxftype == 'LWPOLYLINE':
+                shapes.append(Polygon(e.points))
             else:
-                logging.warning('Unknown entity %s in dxf shapes file' % e)
+                logging.warning(
+                    'Unknown entity {} ({}) in dxf shapes file'.format(
+                        e, e.dxftype))
 
         return shapes
 
