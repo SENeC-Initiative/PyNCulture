@@ -74,7 +74,7 @@ except ImportError:
 from .tools import pop_largest
 
 
-__version__ = "0.5.1"
+__version__ = "0.6.0"
 
 
 # -------------------- #
@@ -91,10 +91,10 @@ def shapes_from_file(*args, **kwargs):
 
 if _shapely_support:
     from . import shape_io
-    from .shape_io import culture_from_file as cff
-    from .shape_io import shapes_from_file as sff
-    culture_from_file = cff
-    shapes_from_file = sff
+    from .shape_io import culture_from_file as _cff
+    from .shape_io import shapes_from_file as _sff
+    culture_from_file = _cff
+    shapes_from_file = _sff
 
 
 __all__ = ["Shape", "culture_from_file", "pop_largest", "shapes_from_file"]

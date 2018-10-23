@@ -26,6 +26,7 @@ import numpy as np
 
 from shapely.affinity import affine_transform
 from shapely.geometry import MultiPolygon
+from shapely.ops import cascaded_union
 
 from .shape import Shape
 from .tools import pop_largest
@@ -193,13 +194,18 @@ def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
 
 def culture_from_file(filename, min_x=None, max_x=None, unit='um',
                       parent=None, interpolate_curve=50,
-                      default_properties=None):
+                      internal_shapes_as="holes",
+                      default_properties=None,
+                      other_properties=None):
     '''
     Generate a culture from an SVG, a DXF, or a WKT/WKB file.
 
     Valid file needs to contain only closed objects among:
     rectangles, circles, ellipses, polygons, and closed curves.
     The objects do not have to be simply connected.
+
+    .. versionchanged:: 0.6
+        Added `internal_shapes_as` and `other_properties` keyword parameters.
 
     Parameters
     ----------
@@ -210,13 +216,22 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
     max_x : float, optional (default: 5000.)
         Position of the rightmost coordinate of the shape's exterior, in
         `unit`.
-    , unit : str, optional (default: 'um')
+    unit : str, optional (default: 'um')
         Unit of the positions, among micrometers ('um'), milimeters ('mm'),
         centimeters ('cm'), decimeters ('dm'), or meters ('m').
-     parent : :class:`nngt.Graph` or subclass, optional (default: None)
+    parent : :class:`nngt.Graph` or subclass, optional (default: None)
         Assign a parent graph if working with NNGT.
     interpolate_curve : int, optional (default: 50)
         Number of points by which a curve should be interpolated into segments.
+    internal_shapes_as : str, optional (default: "holes")
+        Defines how additional shapes contained in the main environment should
+        be processed. If "holes", then these shapes are substracted from the
+        main environment; if "areas", they are considered as areas.
+    default_properties : dict, optional (default: None)
+        Properties of the default area of the culture.
+    other_properties : dict, optional (default: None)
+        Properties of the non-default areas of the culture (internal shapes if
+        `internal_shapes_as` is set to "areas").
 
     Returns
     -------
@@ -234,45 +249,46 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
     interiors      = [item.coords for item in main_container.interiors]
     invalid_shapes = []
 
+    internal_shapes = []
     for i, s in enumerate(shapes):
         valid = main_container.contains(s)
         if valid:
-            # all remaining shapes are holes in the main container
-            interiors.append(s.exterior.coords)
+            internal_shapes.append(s)
         else:
             # because of interpolation, some shapes can go slightly out of
             # the main container, we correct this by subtracting them from the
             # main container afterwards
             valid = s.difference(main_container).area < 1e-2*s.area
-            invalid_shapes.append(i)
+            internal_shapes.append(s.intersection(main_container))
         assert valid, "Some polygons are not contained in the main container."
 
-    # subtraction of slightly invalid shapes
-    for idx in invalid_shapes:
-        s = shapes[idx]
-        # take difference
-        diff = main_container.difference(s)
-        max_area = -np.inf
-        max_idx = -1
-        # take largest only if multi-polygon
-        if isinstance(diff, MultiPolygon):
-            diff = pop_largest(diff)
-            # ~ for j, p in enumerate(diff):
-                # ~ if p.area > max_area:
-                    # ~ max_idx  = j
-                    # ~ max_area = p.area
-            # ~ diff = diff[max_idx]
-            # ~ plot_shape(diff)
+    internal_shapes = \
+        cascaded_union(internal_shapes) if internal_shapes else Shape([])
+
+    if internal_shapes_as == "holes":
+        diff           = main_container.difference(internal_shapes)
         main_container = Shape.from_polygon(diff, min_x=None, max_x=None)
+        interiors      = [item.coords for item in main_container.interiors]
+    elif internal_shapes_as != "areas":
+        raise ValueError("Invalid value {} for `internal_shapes_as`".format(
+                         internal_shapes_as))
 
-    exterior = main_container.exterior.coords
-
-    culture  = Shape(exterior, interiors)
+    culture  = Shape(main_container.exterior.coords, interiors)
     old_area = culture.area
     # make sure it is a valid Polygon
     culture = Shape.from_polygon(culture.buffer(0), min_x=None, max_x=None,
                                  unit=unit, parent=parent,
                                  default_properties=default_properties)
+
+    if internal_shapes_as == "areas" and not internal_shapes.is_empty:
+        if isinstance(internal_shapes, MultiPolygon):
+            for i, p in enumerate(internal_shapes):
+                culture.add_area(p, name="area_{}".format(i),
+                                 properties=other_properties)
+        else:
+            culture.add_area(internal_shapes, name="area_1",
+                             properties=other_properties)
+
     # check
     if not np.isclose(culture.area, old_area):
         tolerance = culture.length*1e-6

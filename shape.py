@@ -530,6 +530,7 @@ class Shape(Polygon):
         # update the default area
         default_area = self._areas["default_area"]
         new_default = default_area.difference(intersection)
+
         # check that we do not add an area containing default
         if not new_default.is_empty:
             _insert_area(self, "default_area", new_default,
