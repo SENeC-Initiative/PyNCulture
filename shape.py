@@ -25,6 +25,9 @@ Shape implementation using the
 
 import weakref
 from copy import deepcopy
+import logging
+
+logger = logging.getLogger(__name__)
 
 import shapely
 from shapely.wkt import loads
@@ -38,10 +41,20 @@ from numpy.random import uniform
 from .geom_utils import conversion_magnitude
 from .tools import indexable, pop_largest, _insert_area
 
+# unit support
+
 try:
     from .units import _unit_support
 except ImportError:
     _unit_support = False
+
+# opengl support
+
+try:
+    from .triangulate import triangulate, rnd_pts_in_tr
+    _opengl_support = True
+except ImportError:
+    _opengl_support = False
 
 
 __all__ = ["Area", "Shape"]
@@ -130,20 +143,19 @@ class Shape(Polygon):
         default_properties : dict, optional (default: None)
             Default properties of the environment.
         '''
+        assert isinstance(polygon, Polygon), "`polygon` is not a Polygon " +\
+            "but a {}.".format(polygon.__class__)
+
         if _unit_support:
             from .units import Q_
             if isinstance(min_x, Q_):
                 min_x = min_x.m_as(unit)
             if isinstance(max_x, Q_):
                 max_x = max_x.m_as(unit)
+
         obj    = None
         g_type = None
-        if isinstance(polygon, MultiPolygon):
-            g_type = "MultiPolygon"
-        elif isinstance(polygon, (Polygon, Shape, Area)):
-            g_type = "Polygon"
-        else:
-            raise TypeError("Expected a Polygon or MultiPolygon object.")
+
         # find the scaling factor
         if None not in (min_x, max_x):
             ext        = np.array(polygon.exterior.coords)
@@ -152,10 +164,7 @@ class Shape(Polygon):
             scaling    = (max_x - min_x) / (rightmost - leftmost)
             obj        = scale(polygon, scaling, scaling)
         else:
-            if g_type == "Polygon":
-                obj    = Polygon(polygon)
-            else:
-                obj    = MultiPolygon(polygon)
+            obj = Polygon(polygon)
 
         obj.__class__         = Shape
         obj._parent           = None
@@ -886,22 +895,43 @@ class Shape(Polygon):
 
         # enter here only if Polygon or `container` is not None
         if custom_shape:
-            seed_area = self.intersection(container)
-            seed_area = seed_area.buffer(-soma_radius)
+            seed_area   = self.intersection(container)
+            area_buffer = seed_area.buffer(-soma_radius)
+            if not area_buffer.is_empty:
+                seed_area = area_buffer
+            assert not seed_area.is_empty, "Empty area for seeding, check " +\
+                "your `container` and min/max values."
+
             if not isinstance(seed_area, (Polygon, MultiPolygon)):
                 raise ValueError("Invalid boundary value for seed region; "
                                  "check that the min/max values you requested "
                                  "are inside the shape.")
-            points = []
-            p = Point()
-            while len(points) < neurons:
-                new_x = uniform(min_x, max_x, neurons-len(points))
-                new_y = uniform(min_y, max_y, neurons-len(points))
-                for x, y in zip(new_x, new_y):
-                    p.coords = (x, y)
-                    if seed_area.contains(p):
-                        points.append((x, y))
-            positions = np.array(points)
+
+            if _opengl_support:
+                triangles = []
+
+                if isinstance(seed_area, MultiPolygon):
+                    for g in seed_area.geoms:
+                        triangles.extend((Polygon(v) for v in triangulate(g)))
+                else:
+                    triangles = [Polygon(v) for v in triangulate(seed_area)]
+
+                positions = rnd_pts_in_tr(triangles, neurons)
+            else:
+                logger.warning("Random point generation can be very slow "
+                               "without advanced triangulation methods. "
+                               "Please install PyOpenGL for faster seeding "
+                               "inside complex shapes.")
+                points = []
+                p = Point()
+                while len(points) < neurons:
+                    new_x = uniform(min_x, max_x, neurons-len(points))
+                    new_y = uniform(min_y, max_y, neurons-len(points))
+                    for x, y in zip(new_x, new_y):
+                        p.coords = (x, y)
+                        if seed_area.contains(p):
+                            points.append((x, y))
+                positions = np.array(points)
 
         if unit is not None and unit != self._unit:
             positions *= conversion_magnitude(unit, self._unit)

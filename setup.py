@@ -48,11 +48,13 @@ try:
         packages = find_packages('.'),
 
         # Requirements
-        install_requires = ['numpy', 'scipy>=0.11', 'matplotlib'],
+        install_requires = ['numpy', 'scipy>=0.11'],
         extras_require = {
             'dxfgrabber': 'dxfgrabber',
+            'matplotlib': 'matplotlib',
+            'PyOpenGL': 'PyOpenGL',
             'shapely': 'shapely',
-            'svgtools': 'svgtools'
+            'svg.path': 'svg.path',
         },
 
         # Metadata
