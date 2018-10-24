@@ -895,12 +895,18 @@ class Shape(Polygon):
 
         # enter here only if Polygon or `container` is not None
         if custom_shape:
-            seed_area = self.intersection(container)
-            seed_area = seed_area.buffer(-soma_radius)
+            seed_area   = self.intersection(container)
+            area_buffer = seed_area.buffer(-soma_radius)
+            if not area_buffer.is_empty:
+                seed_area = area_buffer
+            assert not seed_area.is_empty, "Empty area for seeding, check " +\
+                "your `container` and min/max values."
+
             if not isinstance(seed_area, (Polygon, MultiPolygon)):
                 raise ValueError("Invalid boundary value for seed region; "
                                  "check that the min/max values you requested "
                                  "are inside the shape.")
+
             if _opengl_support:
                 triangles = []
 
