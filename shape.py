@@ -938,7 +938,7 @@ class Shape(Polygon):
 
         if _unit_support and return_quantity:
             from .units import Q_
-            positions *= Q_(unit)
+            return positions * Q_("um" if unit is None else unit)
 
         return positions
 
