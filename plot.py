@@ -65,7 +65,8 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
     import matplotlib.pyplot as plt
     MultiPolygon = None
     try:
-        from shapely.geometry import MultiPolygon
+        from shapely.geometry import (MultiPolygon, Polygon, LineString,
+                                      MultiLineString)
     except ImportError:
         pass
 
@@ -77,7 +78,7 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         for p in shape:
             plot_shape(p, axis=axis, m=m, mc=mc, fc=fc, ec=ec, alpha=alpha,
                        brightness=brightness, show=False, **kwargs)
-    elif shape.exterior.coords:
+    elif isinstance(shape, Polygon) and shape.exterior.coords:
         _plot_coords(axis, shape.exterior, m, mc, ec)
         for path in shape.interiors:
             _plot_coords(axis, path.coords, m, mc, ec)
@@ -121,6 +122,10 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
                         area, color=color, alpha=local_alpha, zorder=0,
                         **kwargs)
                     axis.add_patch(patch)
+    elif isinstance(shape, (LineString, MultiLineString)):
+        lines = [shape] if isinstance(shape, LineString) else shape.geoms
+        for line in lines:
+            _plot_coords(axis, line.coords, m, mc, ec)
 
     axis.set_aspect(1)
 

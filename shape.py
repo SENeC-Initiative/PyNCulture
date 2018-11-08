@@ -795,7 +795,7 @@ class Shape(Polygon):
             'um', 'mm', 'cm', 'dm', 'm'.
         return_quantity : bool, optional (default: False)
             Whether the positions should be returned as ``pint.Quantity``
-            objects (requires Pint); `unit` must be provided.
+            objects (requires Pint).
 
         .. versionchanged:: 0.5
             Accepts `pint` units and `return_quantity` argument.
@@ -1126,9 +1126,13 @@ class _PDict(dict):
         '''
         Check that the value is a positive real or NaN before setting it.
         '''
-        assert value >= 0 or np.isnan(value), "The property must be a " +\
-                                              "positive real or NaN."
-        super(_PDict, self).__setitem__(key, value)
+        if key != "substrate_affinity":
+            assert value >= 0 or np.isnan(value), \
+                "`{}` property must be a positive real or NaN.".format(key)
+        else:
+            assert isinstance(value, float), \
+                "`substrate_affinity` must be real or NaN."
+        super(_PDict, self).__setitem__(key, float(value))
 
     def todict(self):
         return {k: v for k, v in self.items()}
