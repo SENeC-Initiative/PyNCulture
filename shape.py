@@ -33,7 +33,6 @@ import shapely
 from shapely.wkt import loads
 from shapely.affinity import scale, translate
 from shapely.geometry import Point, Polygon, MultiPolygon
-from shapely.geometry.base import geom_factory
 
 import numpy as np
 from numpy.random import uniform
@@ -254,6 +253,8 @@ class Shape(Polygon):
                 height = height.m_as(unit)
             if isinstance(centroid, Q_):
                 centroid = centroid.m_as(unit)
+            elif isinstance(centroid, Point):
+                centroid = list(centroid.coords)[0]
             elif isinstance(centroid[0], Q_):
                 centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         half_w = 0.5 * width
@@ -299,6 +300,8 @@ class Shape(Polygon):
                 radius = radius.m_as(unit)
             if isinstance(centroid, Q_):
                 centroid = centroid.m_as(unit)
+            elif isinstance(centroid, Point):
+                centroid = list(centroid.coords)[0]
             elif isinstance(centroid[0], Q_):
                 centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         centroid = np.array(centroid)
@@ -344,6 +347,8 @@ class Shape(Polygon):
                 radii = (radii[0].m_as(unit), radii[1].m_as(unit))
             if isinstance(centroid, Q_):
                 centroid = centroid.m_as(unit)
+            elif isinstance(centroid, Point):
+                centroid = list(centroid.coords)[0]
             elif isinstance(centroid[0], Q_):
                 centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
         centroid = np.array(centroid)

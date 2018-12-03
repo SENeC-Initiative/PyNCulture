@@ -30,12 +30,12 @@ from matplotlib.patches import PathPatch
 from matplotlib.path import Path
 
 
-
 def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
-               ec="#444444", alpha=0.5, brightness="height", show=True,
-               **kwargs):
+               ec="#444444", alpha=0.5, brightness="height", show_contour=True,
+               show=True, **kwargs):
     '''
-    Plot a shape (set the `axis` aspect to 1 to respect the proportions).
+    Plot a shape (you should set the `axis` aspect to 1 to respect the
+    proportions).
 
     Parameters
     ----------
@@ -59,7 +59,11 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         values are darker, higher values are lighter).
         Difference can concern the 'height', or any of the `properties` of the
         :class:`Area` objects.
-    kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
+    show_contour : bool, optional (default: True)
+        Whether the shapes should be drawn with a contour.
+    show : bool, optional (default: True)
+        Whether the plot should be displayed immediately.
+    **kwargs: keywords arguments for :class:`matplotlib.patches.PathPatch`
     '''
     # import
     import matplotlib.pyplot as plt
@@ -73,16 +77,23 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
     if axis is None:
         fig, axis = plt.subplots()
 
+    zorder = kwargs.get("zorder", 0)
+    if "zorder" in kwargs:
+        del kwargs["zorder"]
+
     # plot the main shape
     if isinstance(shape, MultiPolygon):
         for p in shape:
             plot_shape(p, axis=axis, m=m, mc=mc, fc=fc, ec=ec, alpha=alpha,
-                       brightness=brightness, show=False, **kwargs)
+                       brightness=brightness, show=False,
+                       show_contour=show_contour, **kwargs)
     elif isinstance(shape, Polygon) and shape.exterior.coords:
-        _plot_coords(axis, shape.exterior, m, mc, ec)
-        for path in shape.interiors:
-            _plot_coords(axis, path.coords, m, mc, ec)
-        patch = _make_patch(shape, color=fc, alpha=alpha, zorder=0, **kwargs)
+        if show_contour:
+            _plot_coords(axis, shape.exterior, m, mc, ec)
+            for path in shape.interiors:
+                _plot_coords(axis, path.coords, m, mc, ec)
+        patch = _make_patch(shape, color=fc, alpha=alpha, zorder=zorder,
+                            **kwargs)
         axis.add_patch(patch)
 
         # take care of the areas
@@ -119,7 +130,7 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
                         _plot_coords(axis, path.coords, m, mc, ec)
                     # content
                     patch = _make_patch(
-                        area, color=color, alpha=local_alpha, zorder=0,
+                        area, color=color, alpha=local_alpha, zorder=zorder,
                         **kwargs)
                     axis.add_patch(patch)
     elif isinstance(shape, (LineString, MultiLineString)):
