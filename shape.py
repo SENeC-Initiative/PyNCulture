@@ -4,17 +4,17 @@
 # This file is part of the PyNCulture project, which aims at providing tools to
 # easily generate complex neuronal cultures.
 # Copyright (C) 2017 SENeC Initiative
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -107,13 +107,16 @@ class Shape(Polygon):
         default_properties : dict, optional (default: None)
             Default properties of the environment.
         '''
+        from .shape_io import culture_from_file
+
         if _unit_support:
             from .units import Q_
             if isinstance(min_x, Q_):
                 min_x = min_x.m_as(unit)
             if isinstance(max_x, Q_):
                 max_x = max_x.m_as(unit)
-        return pnc.culture_from_file(
+
+        return culture_from_file(
                 filename,  min_x=min_x, max_x=max_x, unit=unit, parent=parent,
                 interpolate_curve=interpolate_curve,
                 default_properties=default_properties)
@@ -600,7 +603,7 @@ class Shape(Polygon):
             will default to the "default_area" properties.
         etching : float, optional (default: 0)
             Etching of the obstacles' corners (rounded corners). Valid only
-            for 
+            for
         '''
         form_center = None
 
@@ -627,7 +630,7 @@ class Shape(Polygon):
             form = self.rectangle(**params)
         elif not isinstance(form, (Polygon, MultiPolygon, Shape, Area)):
             raise RuntimeError("Invalid form: '{}'.".format(form))
-        
+
         # get form center and center on (0, 0)
         xmin, ymin, xmax, ymax = form.bounds
         form_center            = (0.5*(xmax + xmin), 0.5*(ymax + ymin))
@@ -844,7 +847,7 @@ class Shape(Polygon):
         if on_area is not None:
             if not hasattr(on_area, '__iter__'):
                 on_area = [on_area]
-        
+
         min_x, min_y, max_x, max_y = self.bounds
 
         custom_shape = (container is not None)
