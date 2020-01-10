@@ -18,10 +18,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from xml.dom.minidom import parse
-from svg.path import parse_path, CubicBezier, QuadraticBezier, Arc
-from itertools import chain
 from copy import deepcopy
+from itertools import chain
+
+from xml.dom.minidom import parse
+
+from svg.path import (parse_path, CubicBezier, QuadraticBezier, Arc,
+                      Move, Close, Path)
 
 import shapely
 from shapely.affinity import scale, affine_transform, translate
@@ -84,6 +87,86 @@ def polygons_from_svg(filename, interpolate_curve=50, parent=None,
 # Tools #
 # ----- #
 
+
+def _get_closed_subpaths(path):
+    '''
+    Generates all closed subpaths raises error if open subpaths exist.
+
+    Credit to @tatarize:
+    https://github.com/regebro/svg.path/issues/54#issuecomment-570101018
+    '''
+    segments = None
+    for p in path:
+        if isinstance(p, Move):
+            if segments is not None:
+                raise RuntimeError("Only closed shapes accepted.")
+            segments = []
+
+        segments.append(p)
+
+        if isinstance(p, Close):
+            yield Path(*segments)
+            segments = None
+
+
+def _get_points(path, interpolate_curve=50):
+    ''' Get points from path. '''
+    points = []
+
+    for item in path:
+        if isinstance(item, (Arc, CubicBezier, QuadraticBezier)):
+            istart = 1. / interpolate_curve
+            for frac in np.linspace(istart, 1, interpolate_curve):
+                points.append(
+                    (item.point(frac).real, item.point(frac).imag))
+        else:
+            points.append((item.start.real, item.start.imag))
+
+    return points
+
+
+def _get_outer_shell(paths_points):
+    ''' Returns the index of the container subpath '''
+    minx, maxx, miny, maxy = np.inf, -np.inf, np.inf, -np.inf
+
+    container_idx = None
+
+    for i, pp in enumerate(paths_points):
+        arr = np.array(pp)
+
+        x_min = np.min(arr[:, 0])
+        x_max = np.max(arr[:, 0])
+        y_min = np.min(arr[:, 1])
+        y_max = np.max(arr[:, 1])
+
+        winner = True
+
+        if x_min <= minx:
+            minx = x_min
+        else:
+            winner = False
+
+        if x_max >= maxx:
+            maxx = x_max
+        else:
+            winner = False
+
+        if y_min <= miny:
+            miny = y_min
+        else:
+            winner = False
+
+        if y_max >= maxy:
+            maxy = y_max
+        else:
+            winner = False
+
+        if winner:
+            container_idx = i
+
+    return container_idx
+
+
 def _build_struct(svg, container, elt_type, elt_properties):
     root    = svg.documentElement
 
@@ -120,26 +203,11 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
 
     if elt_type == "path":  # build polygons from custom paths
         path_data = parse_path(instructions["path"])
-        num_data  = len(path_data)
-        if not path_data.closed:
-            raise RuntimeError("Only closed shapes accepted.")
-        start  = path_data[0].start
-        points = shell  # the first path is the outer shell?
-        for j, item in enumerate(path_data):
-            if isinstance(item, (Arc, CubicBezier, QuadraticBezier)):
-                istart = 1. / interpolate_curve
-                for frac in np.linspace(istart, 1, interpolate_curve):
-                    points.append(
-                        (item.point(frac).real, item.point(frac).imag))
-            else:
-                points.append((item.start.real, item.start.imag))
-            # the shell is closed, so the rest defines holes
-            if item.end == start and j != idx_start and j < len(path_data) - 1:
-                holes.append([])
-                points = holes[-1]
-                start = path_data[j+1].start
-                idx_start = j+1
-        shell = np.array(shell)
+        subpaths  = [subpath for subpath in
+                     _get_closed_subpaths(path_data)]
+        shell     = _get_points(subpaths[0], interpolate_curve)
+        holes     = [_get_points(subpath) for subpath in subpaths
+        shell     = np.array(shell)
         container = Polygon(shell, holes=holes)
     elif elt_type == "ellipse":  # build ellipses
         circle = Point((instructions["cx"], instructions["cy"])).buffer(1)
