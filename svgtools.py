@@ -205,9 +205,14 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
         path_data = parse_path(instructions["path"])
         subpaths  = [subpath for subpath in
                      _get_closed_subpaths(path_data)]
-        shell     = _get_points(subpaths[0], interpolate_curve)
-        holes     = [_get_points(subpath) for subpath in subpaths
-        shell     = np.array(shell)
+        points    = [_get_points(subpath) for subpath in subpaths]
+
+        # get the container
+        idx_container = _get_outer_shell(points)
+        shell         = np.array(points[idx_container])
+
+        # get the holes and make the shape
+        holes     = [pp for i, pp in enumerate(points) if i!= idx_container]
         container = Polygon(shell, holes=holes)
     elif elt_type == "ellipse":  # build ellipses
         circle = Point((instructions["cx"], instructions["cy"])).buffer(1)
