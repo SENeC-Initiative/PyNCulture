@@ -1,0 +1,5 @@
+numpy
+scipy
+svg.path >= 4
+dxfgrabber
+shapely
