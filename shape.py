@@ -418,6 +418,25 @@ class Shape(Polygon):
         }
         super(Shape, self).__init__(shell, holes=holes)
 
+    def copy(self):
+        '''
+        Create a copy of the current Shape.
+        '''
+        copy = Shape.from_polygon(self)
+
+        copy._return_quantity = self._return_quantity
+
+        copy._parent    = None
+        copy._unit      = self._unit
+        copy._geom_type = self._geom_type
+
+        if self._areas:
+            copy._areas     = {
+                key: val.copy() for key, val in self._areas.items()
+            }
+
+        return copy
+
     @property
     def parent(self):
         ''' Return the parent of the :class:`Shape`. '''
@@ -1051,7 +1070,7 @@ class Area(Shape):
         obj._unit            = unit
         obj._geom_type       = g_type
         obj.__class__        = Area
-        obj._area            = None
+        obj._areas           = None
         obj.height           = height
         obj.name             = name
         obj._prop            = _PDict(
@@ -1089,7 +1108,9 @@ class Area(Shape):
             from .units import Q_
             if isinstance(height, Q_):
                 height = height.m_as(unit)
+
         super(Area, self).__init__(shell, holes=holes, unit=unit, parent=None)
+
         self._areas = None
         self.height = height
         self.name   = name
@@ -1100,6 +1121,13 @@ class Area(Shape):
         obj = Area.from_shape(
             self, height=self.height, name=self.name, properties=self._prop)
         return obj
+
+    def copy(self):
+        '''
+        Create a copy of the current Area.
+        '''
+        return Area.from_shape(super().copy(), height=self.height,
+                               name=self.name, properties=self._prop.todict())
 
     @property
     def areas(self):
