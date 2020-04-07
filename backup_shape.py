@@ -23,6 +23,7 @@ Backup Shape implementation using scipy.
 """
 
 import weakref
+from copy import deepcopy
 
 import numpy as np
 from numpy.random import uniform
@@ -249,6 +250,33 @@ class BackupShape:
         self._area        = None
         self._com         = None
         self._convex_hull = None
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            b_interior = np.all(np.isclose(self.interiors, other.interiors))
+            b_points   = np.all(np.isclose(self._points, other._points))
+            return b_points*b_interior
+
+        return False
+
+    def copy(self):
+        '''
+        Create a copy of the current Shape.
+        '''
+        copy = BackupShape(unit=self._unit)
+
+        # copy properties
+        copy.interiors    = deepcopy(self.interiors)
+        copy._points      = deepcopy(self._points)
+        copy._bounds      = deepcopy(self._bounds)
+        copy._area        = self._area
+        copy._com         = deepcopy(self._com)
+        copy._convex_hull = deepcopy(self._convex_hull)
+
+        # set mock exterior
+        copy.exterior = _Path(copy)
+
+        return copy
 
     @property
     def area(self):

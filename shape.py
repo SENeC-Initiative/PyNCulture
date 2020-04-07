@@ -409,6 +409,7 @@ class Shape(Polygon):
         self._parent    = weakref.proxy(parent) if parent is not None else None
         self._unit      = unit
         self._geom_type = 'Polygon'
+
         # create the default area
         tmp = Polygon(shell, holes=holes)
         self._areas     = {
@@ -416,6 +417,7 @@ class Shape(Polygon):
                 tmp, name="default_area", properties=default_properties,
                 unit=unit)
         }
+
         super(Shape, self).__init__(shell, holes=holes)
 
     def copy(self):
