@@ -195,10 +195,10 @@ def _plot_coords(ax, ob, m, mc, ec):
     if hasattr(ob, 'coords') and isinstance(ob.coords, list):
         for coord in ob.coords:
             x, y = ob.xy
-            ax.plot(x, y, m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
+            ax.plot(x, y, marker=m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
     else:
         x, y = ob.xy
-        ax.plot(x, y, m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
+        ax.plot(x, y, marker=m, ls='-', c=ec, markerfacecolor=mc, zorder=1)
 
 
 def _get_prop(area, brightness):
