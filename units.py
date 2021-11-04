@@ -20,17 +20,16 @@
 
 try:
     import pint
-    from pint import UnitRegistry, set_application_registry
 
     # check for the registry
 
-    ureg = pint._APP_REGISTRY
+    ureg = pint.get_application_registry()
 
     if ureg == pint._DEFAULT_REGISTRY:
-        ureg = UnitRegistry()
-        set_application_registry(ureg)
+        ureg = pint.UnitRegistry()
+        pint.set_application_registry(ureg)
 
-    Q_   = ureg.Quantity
+    Q_ = ureg.Quantity
 
 
     # length
