@@ -26,7 +26,7 @@ import numpy as np
 
 from shapely.affinity import affine_transform
 from shapely.geometry import MultiPolygon
-from shapely.ops import cascaded_union
+from shapely.ops import unary_union
 
 from .shape import Shape
 from .tools import pop_largest
@@ -263,7 +263,7 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
         assert valid, "Some polygons are not contained in the main container."
 
     internal_shapes = \
-        cascaded_union(internal_shapes) if internal_shapes else Shape([])
+        unary_union(internal_shapes) if internal_shapes else Shape([])
 
     if internal_shapes_as == "holes":
         diff           = main_container.difference(internal_shapes)
