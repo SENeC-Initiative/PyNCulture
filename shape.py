@@ -423,6 +423,14 @@ class Shape(Polygon):
 
         super(Shape, self).__init__(shell, holes=holes)
 
+    def __setattr__(self, name, value):
+        ''' Bypass Shapely 1.8+ __setattr__ method '''
+        try:
+            super().__getattribute__(name)
+            super().__setattr__(name, value)
+        except AttributeError:
+            object.__setattr__(self, name, value)
+
     def copy(self):
         '''
         Create a copy of the current Shape.
@@ -951,13 +959,14 @@ class Shape(Polygon):
                                "without advanced triangulation methods. "
                                "Please install PyOpenGL for faster seeding "
                                "inside complex shapes.")
+
                 points = []
-                p = Point()
+
                 while len(points) < neurons:
                     new_x = uniform(min_x, max_x, neurons-len(points))
                     new_y = uniform(min_y, max_y, neurons-len(points))
                     for x, y in zip(new_x, new_y):
-                        p.coords = (x, y)
+                        p = Point(x, y)
                         if seed_area.contains(p):
                             points.append((x, y))
                 positions = np.array(points)
