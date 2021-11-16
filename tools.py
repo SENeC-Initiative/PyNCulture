@@ -46,7 +46,7 @@ def pop_largest(shapes):
     ----------
     shapes : list of :class:`Shape` objects or MultiPolygon.
     '''
-    from .shape import Shape
+    from . import Shape
 
     MultiPolygon = Shape
 
@@ -89,8 +89,9 @@ def _insert_area(container, area_name, shape, height, properties):
     # import
     from .shape import Area
     from shapely.geometry import MultiPolygon
+
     # check for multiple polygons
-    if shape.__class__ == MultiPolygon:
+    if isinstance(shape, MultiPolygon):
         # behavior differs for default_area (never deleted) and other areas
         if area_name == "default_area":
             largest = pop_largest(shape)

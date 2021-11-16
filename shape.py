@@ -1058,12 +1058,14 @@ class Area(Shape):
 
         obj    = None
         g_type = None
+
         if isinstance(shape, MultiPolygon):
             g_type = "MultiPolygon"
         elif isinstance(shape, (Polygon, Shape, Area)):
             g_type = "Polygon"
         else:
             raise TypeError("Expected a Polygon or MultiPolygon object.")
+
         # find the scaling factor
         scaling = 1.
         if None not in (min_x, max_x):
