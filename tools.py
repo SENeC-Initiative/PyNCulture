@@ -20,11 +20,6 @@
 
 """ Tools for PyNCulture """
 
-try:
-    from collections.abc import Container as _container
-except:
-    from collections import Container as _container
-
 import numpy as np
 
 from . import _shapely_support
@@ -51,7 +46,10 @@ def pop_largest(shapes):
     ----------
     shapes : list of :class:`Shape` objects or MultiPolygon.
     '''
-    MultiPolygon = None
+    from .shape import Shape
+
+    MultiPolygon = Shape
+
     try:
         from shapely.geometry import MultiPolygon
     except ImportError:
@@ -60,13 +58,15 @@ def pop_largest(shapes):
     max_area = -np.inf
     max_idx  = -1
 
-    for i, s in enumerate(shapes):
+    shapes_list = shapes.geoms if isinstance(shapes, MultiPolygon) else shapes
+
+    for i, s in enumerate(shapes_list):
         if s.area > max_area:
             max_area = s.area
             max_idx  = i
 
-    if shapes.__class__ == MultiPolygon:
-        return shapes[max_idx]
+    if isinstance(shapes, MultiPolygon):
+        return shapes.geoms[max_idx]
 
     return shapes.pop(max_idx)
 
@@ -95,7 +95,7 @@ def _insert_area(container, area_name, shape, height, properties):
         if area_name == "default_area":
             largest = pop_largest(shape)
             count   = len(container.default_areas)
-            for p in shape:
+            for p in shape.geoms:
                 new_name = area_name
                 if p != largest:
                     new_name = area_name + '_' + str(count)
@@ -103,7 +103,7 @@ def _insert_area(container, area_name, shape, height, properties):
                 container._areas[new_name] = Area.from_shape(
                     p, height=height, name=new_name, properties=properties)
         else:
-            for i, p in enumerate(shape):
+            for i, p in enumerate(shape.geoms):
                 new_name = area_name + '_' + str(i)
                 container._areas[new_name] = Area.from_shape(
                     p, height=height, name=new_name, properties=properties)
@@ -112,7 +112,7 @@ def _insert_area(container, area_name, shape, height, properties):
     else:
         container._areas[area_name] = Area.from_shape(
                 shape, height=height, name=area_name, properties=properties)
-            
+
 
 def _backup_contains(x, y, shape):
     try:
@@ -138,6 +138,6 @@ def _backup_contains(x, y, shape):
         contained *= np.less_equal(y, ymax)
         contained *= np.greater_equal(y, ymin)
         return contained
-    else:
-        raise TypeError("Invalid Shape type: {}.".format(shape.geom_type))
+
+    raise TypeError("Invalid Shape type: {}.".format(shape.geom_type))
         

@@ -282,7 +282,7 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
 
     if internal_shapes_as == "areas" and not internal_shapes.is_empty:
         if isinstance(internal_shapes, MultiPolygon):
-            for i, p in enumerate(internal_shapes):
+            for i, p in enumerate(internal_shapes.geoms):
                 culture.add_area(p, name="area_{}".format(i),
                                  properties=other_properties)
         else:
