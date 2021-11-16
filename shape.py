@@ -477,7 +477,7 @@ class Shape(Polygon):
         .. versionadded:: 0.4
         '''
         areas = {
-            k: deepcopy(v) for k,v in self._areas.items()
+            k: deepcopy(v) for k, v in self._areas.items()
             if k.find("default_area") == 0
         }
         return areas
@@ -491,7 +491,7 @@ class Shape(Polygon):
         .. versionadded:: 0.4
         '''
         areas = {
-            k: deepcopy(v) for k,v in self._areas.items()
+            k: deepcopy(v) for k, v in self._areas.items()
             if k.find("default_area") != 0
         }
         return areas
@@ -631,8 +631,7 @@ class Shape(Polygon):
             `heights` is not None). If not provided and `heights` is not None,
             will default to the "default_area" properties.
         etching : float, optional (default: 0)
-            Etching of the obstacles' corners (rounded corners). Valid only
-            for
+            Etching of the obstacles' corners (rounded corners).
         '''
         form_center = None
 
@@ -707,7 +706,7 @@ class Shape(Polygon):
                 same_prop.append(np.allclose(heights, heights[0]))
             except TypeError:
                 same_prop.append(True)
-                heights     = [heights for _ in range(n)]
+                heights = [heights for _ in range(n)]
 
         # check properties
         if isinstance(properties, dict):
@@ -1059,12 +1058,14 @@ class Area(Shape):
 
         obj    = None
         g_type = None
+
         if isinstance(shape, MultiPolygon):
             g_type = "MultiPolygon"
         elif isinstance(shape, (Polygon, Shape, Area)):
             g_type = "Polygon"
         else:
             raise TypeError("Expected a Polygon or MultiPolygon object.")
+
         # find the scaling factor
         scaling = 1.
         if None not in (min_x, max_x):
