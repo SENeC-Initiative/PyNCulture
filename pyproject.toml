@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2017 SENeC Initiative
+# SPDX-License-Identifier: CC0-1.0
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "PyNCulture"
+authors = [
+  { name="Tanguy Fardet", email="tanguyfardet@protonmail.com" },
+  { name="Samuel Bottani", email="samuel.bottani@u-paris.fr" },
+]
+description = "Python module to describe neuronal cultures as complex shapes."
+readme = "README.md"
+keywords = ["neuronal cultures", "geometry", "shape", "shapely"]
+requires-python = ">=3.7"
+dynamic = ["dependencies", "version"]
+
+[project.optional-dependencies]
+opengl = ["PyOpenGL"]
+
+[project.urls]
+repository = "https://github.com/SENeC-Initiative/PyNCulture"
+
+
+[tool.setuptools]
+package-data = {PyNCulture = ["*.md", "*.txt"]}
+package-dir = {PyNCulture = "."}
+packages = ["PyNCulture", "PyNCulture.dxf_import"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+version = {attr = "PyNCulture.__version__"}
