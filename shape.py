@@ -23,8 +23,10 @@ Shape implementation using the
 `shapely <http://toblerity.org/shapely/index.html>`_ library.
 """
 
-import weakref
 from copy import deepcopy
+from typing import Any, ClassVar, Dict
+
+import weakref
 import logging
 
 logger = logging.getLogger(__name__)
@@ -60,6 +62,7 @@ __all__ = ["Area", "Shape"]
 
 
 class Shape(Polygon):
+
     """
     Class containing the shape of the area where neurons will be distributed to
     form a network.
@@ -77,6 +80,10 @@ class Shape(Polygon):
     --------
     Parent class: :class:`shapely.geometry.Polygon`
     """
+
+    _id_to_attrs: ClassVar[Dict[str, Any]] = {}
+
+    __slots__ = getattr(Polygon, "__slots__", [])
 
     @staticmethod
     def from_file(filename, min_x=None, max_x=None, unit='um', parent=None,
@@ -155,28 +162,17 @@ class Shape(Polygon):
             if isinstance(max_x, Q_):
                 max_x = max_x.m_as(unit)
 
-        obj    = None
-        g_type = None
-
         # find the scaling factor
         if None not in (min_x, max_x):
-            ext        = np.array(polygon.exterior.coords)
-            leftmost   = np.min(ext[:, 0])
-            rightmost  = np.max(ext[:, 0])
-            scaling    = (max_x - min_x) / (rightmost - leftmost)
-            obj        = scale(polygon, scaling, scaling)
-        else:
-            obj = Polygon(polygon)
+            ext = np.array(polygon.exterior.coords)
+            leftmost = np.min(ext[:, 0])
+            rightmost = np.max(ext[:, 0])
+            scaling = (max_x - min_x) / (rightmost - leftmost)
+            polygon = scale(polygon, scaling, scaling)
 
-        obj.__class__         = Shape
-        obj._parent           = None
-        obj._unit             = unit
-        obj._geom_type        = g_type
-        obj._return_quantity = False
-        obj._areas = {
-            "default_area": Area.from_shape(obj, name="default_area",
-                                            properties=default_properties)
-        }
+        obj = Shape(
+            polygon.exterior.coords, [elt.coords for elt in polygon.interiors],
+            unit=unit, parent=parent)
 
         return obj
 
@@ -216,7 +212,9 @@ class Shape(Polygon):
                 min_x = min_x.m_as(unit)
             if isinstance(max_x, Q_):
                 max_x = max_x.m_as(unit)
+
         p = loads(wtk)
+
         return Shape.from_polygon(
             p, min_x=min_x, max_x=max_x, unit=unit, parent=parent,
             default_properties=default_properties)
@@ -260,16 +258,22 @@ class Shape(Polygon):
                 centroid = list(centroid.coords)[0]
             elif isinstance(centroid[0], Q_):
                 centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
+
         half_w = 0.5 * width
         half_h = 0.5 * height
+
         centroid = np.array(centroid)
+
         points = [centroid + [half_w, half_h],
                   centroid + [half_w, -half_h],
                   centroid - [half_w, half_h],
                   centroid - [half_w, -half_h]]
+
         shape = Shape(points, unit=unit, parent=parent,
                       default_properties=default_properties)
+
         shape._geom_type = "Rectangle"
+
         return shape
 
     @staticmethod
@@ -307,14 +311,20 @@ class Shape(Polygon):
                 centroid = list(centroid.coords)[0]
             elif isinstance(centroid[0], Q_):
                 centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
+
         centroid = np.array(centroid)
+
         minx = centroid[0] - radius
         maxx = centroid[0] + radius
+
         disk = Shape.from_polygon(
             Point(centroid).buffer(radius), min_x=minx, max_x=maxx, unit=unit,
             parent=parent, default_properties=default_properties)
+
         disk._geom_type = "Disk"
+
         disk.radius = radius
+
         return disk
 
     @staticmethod
@@ -354,19 +364,28 @@ class Shape(Polygon):
                 centroid = list(centroid.coords)[0]
             elif isinstance(centroid[0], Q_):
                 centroid = (centroid[0].m_as(unit), centroid[1].m_as(unit))
+
         centroid = np.array(centroid)
         rx, ry = radii
         minx = centroid[0] - rx
         maxx = centroid[0] + rx
+
         ellipse = Shape.from_polygon(
             scale(Point(centroid).buffer(1.), rx, ry), min_x=minx, max_x=maxx,
             unit=unit, parent=parent, default_properties=default_properties)
+
         ellipse._geom_type = "Ellipse"
         ellipse.radii = radii
+
         return ellipse
 
+    def __new__(cls, shell=None, holes=None, **kwargs) -> "Shape":
+        obj = super(Shape, cls).__new__(cls, shell, holes)
+        obj.__class__ = cls
+        return obj
+
     def __init__(self, shell, holes=None, unit='um', parent=None,
-                 default_properties=None):
+                 default_properties=None, **kwargs):
         '''
         Initialize the :class:`Shape` object and the underlying
         :class:`shapely.geometry.Polygon`.
@@ -407,29 +426,35 @@ class Shape(Polygon):
                         except:
                             pass
 
-        self._return_quantity = False
-
-        self._parent    = weakref.proxy(parent) if parent is not None else None
-        self._unit      = unit
-        self._geom_type = 'Polygon'
-
-        # create the default area
-        tmp = Polygon(shell, holes=holes)
-        self._areas     = {
-            "default_area": Area.from_shape(
-                tmp, name="default_area", properties=default_properties,
-                unit=unit)
+        self._id_to_attrs[id(self)] = {
+            "_return_quantity": False,
+            "_parent": None if parent is None else weakref.proxy(parent),
+            "_unit": unit,
+            "_geom_type": 'Polygon',
+            "_areas": None
         }
 
-        super(Shape, self).__init__(shell, holes=holes)
+        if kwargs.get("with_areas", True):
+            self._id_to_attrs[id(self)]["_areas"] = {
+                "default_area": Area.from_shape(
+                    self, name="default_area", properties=default_properties,
+                    unit=unit)
+            }
 
-    def __setattr__(self, name, value):
-        ''' Bypass Shapely 1.8+ __setattr__ method '''
-        try:
-            super().__getattribute__(name)
-            super().__setattr__(name, value)
-        except AttributeError:
-            object.__setattr__(self, name, value)
+    def __getattr__(self, name) -> Any:
+        ''' Access attribute '''
+        attrs = self._id_to_attrs[id(self)]
+
+        if name in attrs:
+            return attrs[name]
+
+        return super().__getattribute__(name)
+
+    def __setattr__(self, name, value) -> None:
+        ''' Change attribute '''
+        attrs = self._id_to_attrs[id(self)]
+
+        attrs[name] = value
 
     def copy(self):
         '''
@@ -439,12 +464,12 @@ class Shape(Polygon):
 
         copy._return_quantity = self._return_quantity
 
-        copy._parent    = None
-        copy._unit      = self._unit
+        copy._parent = None
+        copy._unit = self._unit
         copy._geom_type = self._geom_type
 
         if self._areas:
-            copy._areas     = {
+            copy._areas = {
                 key: val.copy() for key, val in self._areas.items()
             }
 
@@ -480,6 +505,7 @@ class Shape(Polygon):
             k: deepcopy(v) for k, v in self._areas.items()
             if k.find("default_area") == 0
         }
+
         return areas
 
     @property
@@ -494,6 +520,7 @@ class Shape(Polygon):
             k: deepcopy(v) for k, v in self._areas.items()
             if k.find("default_area") != 0
         }
+
         return areas
 
     @property
@@ -1017,6 +1044,7 @@ class Shape(Polygon):
 
 
 class Area(Shape):
+
     """
     Specialized :class:`Shape` that stores additional properties regarding the
     interactions with the neurons.
@@ -1031,6 +1059,8 @@ class Area(Shape):
     Thus, a given area will modulate the speed, wall affinity, etc, of the
     growth cones that are growing above it.
     """
+
+    __slots__ = getattr(Polygon, "__slots__", [])
 
     @classmethod
     def from_shape(cls, shape, height=0., name="area", properties=None,
@@ -1056,7 +1086,7 @@ class Area(Shape):
             if isinstance(max_x, Q_):
                 max_x = max_x.m_as(unit)
 
-        obj    = None
+        obj = None
         g_type = None
 
         if isinstance(shape, MultiPolygon):
@@ -1068,29 +1098,19 @@ class Area(Shape):
 
         # find the scaling factor
         scaling = 1.
-        if None not in (min_x, max_x):
-            ext        = np.array(shape.exterior.coords)
-            leftmost   = np.min(ext[:, 0])
-            rightmost  = np.max(ext[:, 0])
-            scaling    = (max_x - min_x) / (rightmost - leftmost)
-            obj        = scale(shape, scaling, scaling)
-        else:
-            if g_type == "Polygon":
-                obj    = Polygon(shape)
-            else:
-                obj    = MultiPolygon(shape)
 
-        obj.__class__        = cls
-        obj._parent          = None
-        obj._unit            = unit
-        obj._geom_type       = g_type
-        obj.__class__        = Area
-        obj._areas           = None
-        obj.height           = height
-        obj.name             = name
-        obj._prop            = _PDict(
-            {} if properties is None else deepcopy(properties))
-        obj._return_quantity = False
+        if None not in (min_x, max_x):
+            ext = np.array(shape.exterior.coords)
+            leftmost = np.min(ext[:, 0])
+            rightmost = np.max(ext[:, 0])
+            scaling = (max_x - min_x) / (rightmost - leftmost)
+            obj = scale(shape, scaling, scaling)
+
+        obj = cls(
+            shape.exterior.coords, [elt.coords for elt in shape.interiors],
+            unit=unit, height=height, name=name, properties=properties)
+
+        obj._id_to_attrs[id(obj)]["_geom_type"] = g_type
 
         return obj
 
@@ -1124,25 +1144,24 @@ class Area(Shape):
             if isinstance(height, Q_):
                 height = height.m_as(unit)
 
-        super(Area, self).__init__(shell, holes=holes, unit=unit, parent=None)
+        super().__init__(shell, holes=holes, unit=unit, parent=None,
+                         with_areas=False)
 
-        self._areas = None
-        self.height = height
-        self.name   = name
-        self._prop  = _PDict(
+        self._id_to_attrs[id(self)]["_areas"] = None
+        self._id_to_attrs[id(self)]["height"] = height
+        self._id_to_attrs[id(self)]["name"] = name
+        self._id_to_attrs[id(self)]["_prop"] = _PDict(
             {} if properties is None else deepcopy(properties))
 
     def __deepcopy__(self, *args, **kwargs):
-        obj = Area.from_shape(
+        return Area.from_shape(
             self, height=self.height, name=self.name, properties=self._prop)
-        return obj
 
     def copy(self):
         '''
         Create a copy of the current Area.
         '''
-        return Area.from_shape(super().copy(), height=self.height,
-                               name=self.name, properties=self._prop.todict())
+        return self.__deepcopy__()
 
     @property
     def areas(self):

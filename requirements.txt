@@ -1,5 +1,5 @@
 numpy
 scipy
-svg.path >= 4
+svg.path>=4
 dxfgrabber
-shapely
+shapely>=2

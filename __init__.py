@@ -64,9 +64,6 @@ import logging
 
 try:
     import shapely
-    from shapely import speedups
-    if speedups.available:
-        speedups.enable()
     _shapely_support = True
     from .shape import Shape, Area
 except ImportError:
