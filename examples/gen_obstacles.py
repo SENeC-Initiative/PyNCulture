@@ -29,13 +29,11 @@ import PyNCulture as nc
 
 shape = nc.Shape.disk(radius=2500.)
 
-params           = {"height": 250., "width":250.}
-#~ filling_fraction = 0.4*shape.area/(5000.**2)
-#~ filling_fraction = 0.4*(5000.**2)/shape.area
+params = {"height": 250., "width":250.}
 filling_fraction = 0.4
 
-shape.random_obstacles(filling_fraction, form="rectangle", params=params,
-                       heights=30., etching=20.)
+shape = shape.random_obstacles(filling_fraction, form="rectangle",
+                               params=params, heights=30., etching=20.)
 
 
 ''' Seed neurons '''

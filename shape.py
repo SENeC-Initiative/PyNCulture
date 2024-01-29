@@ -613,29 +613,35 @@ class Shape(Polygon):
 
     def add_hole(self, hole):
         '''
-        Make a hole in the shape.
+        Return a new Shape with a hole in it.
 
         .. versionadded:: 0.4
+        .. versionchanged:: 0.10.0
+
+        Returns
+        -------
+        new_shape : Shape
+            A new shape with the hole in it.
         '''
         areas = self.areas.copy()
         new_shape  = Shape.from_polygon(
             self.difference(hole), unit=self.unit, parent=self.parent,
             default_properties=areas["default_area"].properties)
 
-        self._geom             = new_shape._geom
-        new_shape._other_owned = True
-
-        for name, area in areas.items():
+        for name, area in new_shape.areas.items():
             if name.find("default_area") != 0:
-                _insert_area(self, name, area.difference(hole),
+                _insert_area(new_shape, name, area.difference(hole),
                              area.height, area.properties)
+
+        return new_shape
 
     def random_obstacles(self, n, form, params=None, heights=None,
                          properties=None, etching=0, on_area=None):
         '''
-        Place random obstacles inside the shape.
+        Place random obstacles inside the shape and return it as a new Shape.
 
         .. versionadded:: 0.4
+        .. versionchanged:: 0.10.0
 
         Parameters
         ----------
@@ -659,6 +665,11 @@ class Shape(Polygon):
             will default to the "default_area" properties.
         etching : float, optional (default: 0)
             Etching of the obstacles' corners (rounded corners).
+
+        Returns
+        -------
+        new_shape : Shape
+            A shape with the additional obstacles.
         '''
         form_center = None
 
@@ -760,6 +771,8 @@ class Shape(Polygon):
 
         names = ["obstacle_{}".format(num_obstacles + i) for i in range(n)]
 
+        new_shape = self.copy()
+
         # create the obstacles
         if heights is None:
             new_form = Polygon()
@@ -768,7 +781,7 @@ class Shape(Polygon):
             if etching > 0:
                 new_form = new_form.buffer(-etching, cap_style=3)
                 new_form = new_form.buffer(etching)
-            self.add_hole(new_form)
+            new_shape = self.add_hole(new_form)
         else:
             if np.all(same_prop):
                 # potentially contiguous areas
@@ -781,8 +794,8 @@ class Shape(Polygon):
                     new_form = new_form.buffer(-etching, cap_style=3)
                     new_form = new_form.buffer(etching)
                 if self.overlaps(new_form) or self.contains(new_form):
-                    self.add_area(new_form, height=h, name="obstacle",
-                                  properties=prop, override=True)
+                    new_shape.add_area(new_form, height=h, name="obstacle",
+                                       properties=prop, override=True)
             else:
                 # many separate areas
                 prop = (locations, heights, names, properties)
@@ -792,10 +805,12 @@ class Shape(Polygon):
                         new_form = new_form.buffer(-etching, cap_style=3)
                         new_form = new_form.buffer(etching)
                     if h is None:
-                        self.add_hole(new_form)
+                        new_shape = self.add_hole(new_form)
                     elif self.overlaps(new_form) or self.contains(new_form):
-                            self.add_area(new_form, height=h, name=name,
-                                          properties=p, override=True)
+                            new_shape.add_area(new_form, height=h, name=name,
+                                               properties=p, override=True)
+
+        return new_shape
 
     def set_parent(self, parent):
         ''' Set the parent :class:`nngt.Graph`. '''
