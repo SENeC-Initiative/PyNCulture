@@ -4,17 +4,17 @@
 # This file is part of the PyNCulture project, which aims at providing tools to
 # easily generate complex neuronal cultures.
 # Copyright (C) 2017 SENeC Initiative
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -52,14 +52,14 @@ try:
     _svg_support = True
 except ImportError as e:
     _log_message(
-        _logger, "INFO", "SVG import disabled: {}\n".format(e) +\
+        _logger, "INFO", "SVG import disabled: {}\n".format(e) +
                          "Install 'svg.path' to use it.")
 
 try:
     from . import dxftools
     _dxf_support = True
 except ImportError as e:
-    _log_message(_logger, "INFO", "DFX import disabled: {}\n".format(e) +\
+    _log_message(_logger, "INFO", "DFX import disabled: {}\n".format(e) +
                                   "Install 'dxfgrabber' to use it.")
 
 
@@ -124,18 +124,18 @@ def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
         from shapely.wkt import loads
         content = ""
         with open(filename, 'r') as f:
-            content = "".join([l for l in f])
+            content = "".join([line for line in f])
         polygons = [loads(content)]
         points = {'path': [np.array(polygons[0].exterior.coords)]}
     elif filename.endswith(".wkb"):
         from shapely.wkb import loads
         content = ""
         with open(filename, 'r') as f:
-            content = "".join([l for l in f])
+            content = "".join([line for line in f])
         polygons = [loads(content)]
         points = {'path': [np.array(polygons[0].exterior.coords)]}
     else:
-        raise ImportError("You do not have support to load '" + filename + \
+        raise ImportError("You do not have support to load '" + filename +
                           "', please install either 'shapely', 'svg.path' or "
                           "'dxfgrabber' to enable it.")
 
@@ -157,13 +157,13 @@ def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
             max_y_val = max_y_tmp
 
     # set optional shifts if center will change
-    y_center     = 0.5*(max_y_val + min_y_val)
-    x_shift      = 0
+    y_center = 0.5*(max_y_val + min_y_val)
+    x_shift = 0
     scale_factor = 1
     if None not in (min_x, max_x):
         scale_factor = (max_x - min_x) / (max_x_val - min_x_val)
-        x_shift     += max_x - max_x_val * scale_factor
-        y_center    *= scale_factor
+        x_shift += max_x - max_x_val * scale_factor
+        y_center *= scale_factor
     elif min_x is not None:
         x_shift += min_x - min_x_val
     elif max_x is not None:
@@ -175,7 +175,7 @@ def shapes_from_file(filename, min_x=None, max_x=None, unit='um',
     for p in polygons:
         # define affine transformation (xx, xy, yx, yy, xoffset, yoffset)
         aff_trans = [scale_factor, 0, 0, scale_factor, x_shift, -y_center]
-        p_new     = affine_transform(p.buffer(0), aff_trans)
+        p_new = affine_transform(p.buffer(0), aff_trans)
         # check incorrect shapes
         if not np.isclose(p_new.area, p.area*scale_factor**2):
             tolerance = p.length*1e-6
@@ -246,8 +246,7 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
 
     # make sure that the main container contains all other polygons
     main_container = pop_largest(shapes)
-    interiors      = [item.coords for item in main_container.interiors]
-    invalid_shapes = []
+    interiors = [item.coords for item in main_container.interiors]
 
     internal_shapes = []
     for i, s in enumerate(shapes):
@@ -266,14 +265,14 @@ def culture_from_file(filename, min_x=None, max_x=None, unit='um',
         unary_union(internal_shapes) if internal_shapes else Shape([])
 
     if internal_shapes_as == "holes":
-        diff           = main_container.difference(internal_shapes)
+        diff = main_container.difference(internal_shapes)
         main_container = Shape.from_polygon(diff, min_x=None, max_x=None)
-        interiors      = [item.coords for item in main_container.interiors]
+        interiors = [item.coords for item in main_container.interiors]
     elif internal_shapes_as != "areas":
         raise ValueError("Invalid value {} for `internal_shapes_as`".format(
                          internal_shapes_as))
 
-    culture  = Shape(main_container.exterior.coords, interiors)
+    culture = Shape(main_container.exterior.coords, interiors)
     old_area = culture.area
     # make sure it is a valid Polygon
     culture = Shape.from_polygon(culture.buffer(0), min_x=None, max_x=None,

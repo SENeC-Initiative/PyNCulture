@@ -4,25 +4,23 @@
 # This file is part of the PyNCulture project, which aims at providing tools to
 # easily generate complex neuronal cultures.
 # Copyright (C) 2017 SENeC Initiative
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """ Tools for PyNCulture """
 
 import numpy as np
-
-from . import _shapely_support
 
 
 def indexable(obj):
@@ -56,14 +54,14 @@ def pop_largest(shapes):
         pass
 
     max_area = -np.inf
-    max_idx  = -1
+    max_idx = -1
 
     shapes_list = shapes.geoms if isinstance(shapes, MultiPolygon) else shapes
 
     for i, s in enumerate(shapes_list):
         if s.area > max_area:
             max_area = s.area
-            max_idx  = i
+            max_idx = i
 
     if isinstance(shapes, MultiPolygon):
         return shapes.geoms[max_idx]
@@ -95,7 +93,7 @@ def _insert_area(container, area_name, shape, height, properties):
         # behavior differs for default_area (never deleted) and other areas
         if area_name == "default_area":
             largest = pop_largest(shape)
-            count   = len(container.default_areas)
+            count = len(container.default_areas)
             for p in shape.geoms:
                 new_name = area_name
                 if p != largest:
@@ -119,26 +117,26 @@ def _backup_contains(x, y, shape):
     try:
         x = np.array(x)
         y = np.array(y)
-    except:
+    except Exception:
         pass
+
     if shape.geom_type == "Disk":
-        x0, y0           = shape.centroid
+        x0, y0 = shape.centroid
         xmin, _, xmax, _ = shape.bounds
         radius = 0.5*(xmax - xmin)
         return np.less_equal(np.linalg.norm([x - x0, y - y0], axis=0), radius)
     elif shape.geom_type == "Ellipse":
         xmin, ymin, xmax, ymax = shape.bounds
-        a      = 0.5*(xmax - xmin)
-        b      = 0.5*(ymax - ymin)
+        a = 0.5*(xmax - xmin)
+        b = 0.5*(ymax - ymin)
         x0, y0 = shape.centroid
         return np.less_equal(np.square(x-x0) / a + np.square(y-y0) / b, 1.)
     elif shape.geom_type == "Rectangle":
         xmin, ymin, xmax, ymax = shape.bounds
-        contained  = np.less_equal(x, xmax)
+        contained = np.less_equal(x, xmax)
         contained *= np.greater_equal(x, xmin)
         contained *= np.less_equal(y, ymax)
         contained *= np.greater_equal(y, ymin)
         return contained
 
     raise TypeError("Invalid Shape type: {}.".format(shape.geom_type))
-        

@@ -78,9 +78,9 @@ class BackupShape:
     '''
 
     @classmethod
-    def rectangle(cls, height, width, centroid=(0.,0.), unit='um',
+    def rectangle(cls, height, width, centroid=(0., 0.), unit='um',
                   parent=None):
-        '''
+        r'''
         Generate a rectangle of given height, width and center of mass.
 
         Parameters
@@ -133,9 +133,9 @@ class BackupShape:
         return shape
 
     @classmethod
-    def disk(cls, radius, centroid=(0.,0.), unit='um', parent=None,
+    def disk(cls, radius, centroid=(0., 0.), unit='um', parent=None,
              interpolate=50):
-        '''
+        r'''
         Generate a disk of given radius and center (`centroid`).
 
         Parameters
@@ -186,9 +186,9 @@ class BackupShape:
         return shape
 
     @classmethod
-    def ellipse(cls, radii, centroid=(0.,0.), unit='um', parent=None,
+    def ellipse(cls, radii, centroid=(0., 0.), unit='um', parent=None,
                 interpolate=50):
-        '''
+        r'''
         Generate a disk of given radius and center (`centroid`).
 
         Parameters
@@ -239,23 +239,24 @@ class BackupShape:
         return ellipse
 
     def __init__(self, unit='um', parent=None):
-        self._parent   = weakref.proxy(parent) if parent is not None else None
-        self.exterior  = _Path(self)
+        self._parent = weakref.proxy(parent) if parent is not None else None
+        self.exterior = _Path(self)
         self.interiors = []
-        self._unit     = unit
+        self._unit = unit
 
         self._return_quantity = False
 
-        self._points      = None
-        self._bounds      = None
-        self._area        = None
-        self._com         = None
+        self._points = None
+        self._bounds = None
+        self._area = None
+        self._com = None
         self._convex_hull = None
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             b_interior = np.all(np.isclose(self.interiors, other.interiors))
-            b_points   = np.all(np.isclose(self._points, other._points))
+            b_points = np.all(np.isclose(self._points, other._points))
+
             return b_points*b_interior
 
         return False
@@ -267,11 +268,11 @@ class BackupShape:
         copy = BackupShape(unit=self._unit)
 
         # copy properties
-        copy.interiors    = deepcopy(self.interiors)
-        copy._points      = deepcopy(self._points)
-        copy._bounds      = deepcopy(self._bounds)
-        copy._area        = self._area
-        copy._com         = deepcopy(self._com)
+        copy.interiors = deepcopy(self.interiors)
+        copy._points = deepcopy(self._points)
+        copy._bounds = deepcopy(self._bounds)
+        copy._area = self._area
+        copy._com = deepcopy(self._com)
         copy._convex_hull = deepcopy(self._convex_hull)
 
         # set mock exterior
@@ -458,7 +459,7 @@ class BackupShape:
                 xx = uniform(min_x, max_x, size=neurons-num_valid)
                 yy = uniform(min_y, max_y, size=neurons-num_valid)
                 rr2 = np.square(xx-self.centroid[0]) + \
-                      np.square(yy-self.centroid[1])
+                    np.square(yy-self.centroid[1])
                 idx_valid = rr2 <= r2
                 new_valid = np.sum(idx_valid)
                 positions[num_valid:num_valid+new_valid, 0] = xx[idx_valid]
@@ -476,11 +477,11 @@ class BackupShape:
                 xx = uniform(min_x, max_x, size=neurons-num_valid)
                 yy = uniform(min_y, max_y, size=neurons-num_valid)
                 thetas = np.arctan2(yy-self.centroid[1], xx-self.centroid[0])
-                dist_centroid = np.sqrt(np.square(xx-self.centroid[0]) + \
-                                         np.square(yy-self.centroid[1]))
+                dist_centroid = np.sqrt(np.square(xx-self.centroid[0]) +
+                                        np.square(yy-self.centroid[1]))
                 # take some precaution to stay inside the shape
                 dist_max = np.sqrt(
-                    0.99*b*b / ( 1 - e*e*np.square(np.cos(thetas))))
+                    0.99*b*b / (1 - e*e*np.square(np.cos(thetas))))
                 idx_valid = dist_centroid <= dist_max
                 new_valid = np.sum(idx_valid)
                 positions[num_valid:num_valid+new_valid, 0] = xx[idx_valid]
