@@ -3,10 +3,6 @@
 
 import numpy as np
 
-import shapely
-from shapely.affinity import scale
-from shapely.geometry import Point, Polygon
-
 from .dxf_import import DXF
 
 

@@ -31,7 +31,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-import shapely
 from shapely.wkt import loads
 from shapely.affinity import scale, translate
 from shapely.geometry import Point, Polygon, MultiPolygon
@@ -40,7 +39,7 @@ import numpy as np
 from numpy.random import uniform
 
 from .geom_utils import conversion_magnitude
-from .tools import indexable, pop_largest, _insert_area
+from .tools import indexable, _insert_area
 
 # unit support
 
@@ -63,7 +62,7 @@ __all__ = ["Area", "Shape"]
 
 class Shape(Polygon):
 
-    """
+    r"""
     Class containing the shape of the area where neurons will be distributed to
     form a network.
 
@@ -88,7 +87,7 @@ class Shape(Polygon):
     @staticmethod
     def from_file(filename, min_x=None, max_x=None, unit='um', parent=None,
                   interpolate_curve=50, default_properties=None):
-        '''
+        r'''
         Create a shape from a DXF, an SVG, or a WTK/WKB file.
 
         .. versionadded:: 0.3
@@ -131,7 +130,7 @@ class Shape(Polygon):
     @staticmethod
     def from_polygon(polygon, min_x=None, max_x=None, unit='um',
                      parent=None, default_properties=None):
-        '''
+        r'''
         Create a shape from a :class:`shapely.geometry.Polygon`.
 
         Parameters
@@ -179,7 +178,7 @@ class Shape(Polygon):
     @staticmethod
     def from_wkt(wtk, min_x=None, max_x=None, unit='um', parent=None,
                  default_properties=None):
-        '''
+        r'''
         Create a shape from a WKT string.
 
         .. versionadded:: 0.2
@@ -222,7 +221,7 @@ class Shape(Polygon):
     @staticmethod
     def rectangle(height, width, centroid=(0., 0.), unit='um',
                   parent=None, default_properties=None):
-        '''
+        r'''
         Generate a rectangle of given height, width and center of mass.
 
         Parameters
@@ -277,9 +276,9 @@ class Shape(Polygon):
         return shape
 
     @staticmethod
-    def disk(radius, centroid=(0.,0.), unit='um', parent=None,
+    def disk(radius, centroid=(0., 0.), unit='um', parent=None,
              default_properties=None):
-        '''
+        r'''
         Generate a disk of given radius and center (`centroid`).
 
         Parameters
@@ -328,9 +327,9 @@ class Shape(Polygon):
         return disk
 
     @staticmethod
-    def ellipse(radii, centroid=(0.,0.), unit='um', parent=None,
+    def ellipse(radii, centroid=(0., 0.), unit='um', parent=None,
                 default_properties=None):
-        '''
+        r'''
         Generate a disk of given radius and center (`centroid`).
 
         Parameters
@@ -386,7 +385,7 @@ class Shape(Polygon):
 
     def __init__(self, shell, holes=None, unit='um', parent=None,
                  default_properties=None, **kwargs):
-        '''
+        r'''
         Initialize the :class:`Shape` object and the underlying
         :class:`shapely.geometry.Polygon`.
 
@@ -413,7 +412,7 @@ class Shape(Polygon):
                 try:
                     if isinstance(shell[0], Q_):
                         shell = [q.m_as(unit) for q in shell]
-                except:
+                except Exception:
                     pass
             if holes is not None:
                 for i, h in enumerate(holes):
@@ -423,7 +422,7 @@ class Shape(Polygon):
                         try:
                             if isinstance(h[0], Q_):
                                 holes[i] = [q.m_as(unit) for q in h]
-                        except:
+                        except Exception:
                             pass
 
         self._id_to_attrs[id(self)] = {
@@ -624,7 +623,7 @@ class Shape(Polygon):
             A new shape with the hole in it.
         '''
         areas = self.areas.copy()
-        new_shape  = Shape.from_polygon(
+        new_shape = Shape.from_polygon(
             self.difference(hole), unit=self.unit, parent=self.parent,
             default_properties=areas["default_area"].properties)
 
@@ -684,7 +683,7 @@ class Shape(Polygon):
 
         # check n
         if not isinstance(n, np.integer):
-            assert n <= 1, "Filling fraction (floating point `n`) must be "  +\
+            assert n <= 1, "Filling fraction (floating point `n`) must be " + \
                            "smaller or equal to 1."
 
         # check form
@@ -699,25 +698,24 @@ class Shape(Polygon):
 
         # get form center and center on (0, 0)
         xmin, ymin, xmax, ymax = form.bounds
-        form_center            = (0.5*(xmax + xmin), 0.5*(ymax + ymin))
-        form_width             = xmax - xmin
-        form_height            = ymax - ymin
-        form_bbox_area         = float((xmax - xmin)*(ymax - ymin))
+        form_center = (0.5*(xmax + xmin), 0.5*(ymax + ymin))
+        form_width = xmax - xmin
+        form_height = ymax - ymin
 
         # get shape width and height
         xmin, ymin, xmax, ymax = self.bounds
-        width                  = xmax - xmin
-        height                 = ymax - ymin
+        width = xmax - xmin
+        height = ymax - ymin
 
         if not np.allclose(form_center, (0, 0)):
             form = translate(form, -form_center[0], -form_center[1])
 
         # create points where obstacles can be located
         locations = []
-        on_width  = int(np.rint(width / form_width))
+        on_width = int(np.rint(width / form_width))
         on_height = int(np.rint(height / form_height))
-        x_offset  = 0.5*(width - on_width*form_width)
-        y_offset  = 0.5*(height - on_height*form_height)
+        x_offset = 0.5*(width - on_width*form_width)
+        y_offset = 0.5*(height - on_height*form_height)
 
         for i in range(on_width):
             for j in range(on_height):
@@ -729,8 +727,8 @@ class Shape(Polygon):
         if not isinstance(n, np.integer):
             n = int(np.rint(len(locations) * n))
 
-        indices   = list(range(len(locations)))
-        indices   = np.random.choice(indices, n, replace=False)
+        indices = list(range(len(locations)))
+        indices = np.random.choice(indices, n, replace=False)
         locations = [locations[i] for i in indices]
 
         # check heights
@@ -786,8 +784,9 @@ class Shape(Polygon):
             if np.all(same_prop):
                 # potentially contiguous areas
                 new_form = Polygon()
-                h        = next(iter(heights))
-                prop     = next(iter(properties))
+                h = next(iter(heights))
+                prop = next(iter(properties))
+
                 for loc in locations:
                     new_form = new_form.union(translate(form, loc[0], loc[1]))
                 if etching > 0:
@@ -807,8 +806,8 @@ class Shape(Polygon):
                     if h is None:
                         new_shape = self.add_hole(new_form)
                     elif self.overlaps(new_form) or self.contains(new_form):
-                            new_shape.add_area(new_form, height=h, name=name,
-                                               properties=p, override=True)
+                        new_shape.add_area(new_form, height=h, name=name,
+                                           properties=p, override=True)
 
         return new_shape
 
@@ -961,7 +960,8 @@ class Shape(Polygon):
                                      (max_x, max_y), (max_x, min_y)])
         elif on_area is not None:
             custom_shape = True
-            area_shape   = Polygon()
+            area_shape = Polygon()
+
             for area in on_area:
                 area_shape = area_shape.union(self._areas[area])
             if container is not None:
@@ -973,8 +973,9 @@ class Shape(Polygon):
 
         # enter here only if Polygon or `container` is not None
         if custom_shape:
-            seed_area   = self.intersection(container)
+            seed_area = self.intersection(container)
             area_buffer = seed_area.buffer(-soma_radius)
+
             if not area_buffer.is_empty:
                 seed_area = area_buffer
             assert not seed_area.is_empty, "Empty area for seeding, check " +\
@@ -1131,7 +1132,7 @@ class Area(Shape):
 
     def __init__(self, shell, holes=None, unit='um', height=0.,
                  name="area", properties=None):
-        '''
+        r'''
         Initialize the :class:`Shape` object and the underlying
         :class:`shapely.geometry.Polygon`.
 

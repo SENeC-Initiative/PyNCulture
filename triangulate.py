@@ -4,17 +4,17 @@
 # This file is part of the PyNCulture project, which aims at providing tools to
 # easily generate complex neuronal cultures.
 # Copyright (C) 2017 SENeC Initiative
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -43,7 +43,7 @@ def triangulate(polygon):
     triangles : generator containing triplets of triangle vertices.
     """
     vertices = []
-    
+
     # opengl callbacks
     def _edgeFlagCallback(param1, param2): pass
 
@@ -104,11 +104,11 @@ def rnd_pts_in_tr(triangles, num_points):
     areas = np.array(areas) / np.sum(areas)
     # vertices and triangle ids
     verts = np.array([t.exterior.coords for t in triangles])
-    idx   = np.arange(0, len(triangles), dtype=int)
+    idx = np.arange(0, len(triangles), dtype=int)
 
     # choose triangle based on its area
     chosen_idx = np.random.choice(idx, size=num_points, p=areas)
-    chosen     = verts[chosen_idx]
+    chosen = verts[chosen_idx]
 
     # generate random points inside these triangles
     r1, r2 = np.random.rand(2, num_points)
@@ -118,8 +118,8 @@ def rnd_pts_in_tr(triangles, num_points):
     Cs = chosen[:, 2, :]
 
     points = (As.T*(1 - np.sqrt(r1))).T \
-             + (Bs.T*(np.sqrt(r1)*(1 - r2))).T \
-             + (Cs.T*(np.sqrt(r1)*r2)).T
+        + (Bs.T*(np.sqrt(r1)*(1 - r2))).T \
+        + (Cs.T*(np.sqrt(r1)*r2)).T
 
     return points
 

@@ -4,35 +4,29 @@
 # This file is part of the PyNCulture project, which aims at providing tools to
 # easily generate complex neuronal cultures.
 # Copyright (C) 2017 SENeC Initiative
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-from copy import deepcopy
-from itertools import chain
 
 from xml.dom.minidom import parse
 
 from svg.path import (parse_path, CubicBezier, QuadraticBezier, Arc,
                       Move, Close, Path)
 
-import shapely
 from shapely.affinity import scale, affine_transform, translate
 from shapely.geometry import Point, Polygon
 
 import numpy as np
-
-from .shape import Shape
 
 
 '''
@@ -168,7 +162,7 @@ def _get_outer_shell(paths_points):
 
 
 def _build_struct(svg, container, elt_type, elt_properties):
-    root    = svg.documentElement
+    root = svg.documentElement
 
     for elt in root.getElementsByTagName(elt_type):
         struct = {
@@ -183,9 +177,9 @@ def _build_struct(svg, container, elt_type, elt_properties):
             parent = parent.parentNode
 
         _get_transform(elt, struct)
-        
+
         if elt_type == 'path':
-            path, trans = elt.getAttribute('d'), None
+            path, _ = elt.getAttribute('d'), None
             struct["path"] = path
         else:
             for item in elt_properties:
@@ -197,22 +191,22 @@ def _build_struct(svg, container, elt_type, elt_properties):
 def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
                   return_points=False):
     container = None
-    shell     = []  # outer points defining the polygon's outer shell
-    holes     = []  # inner points defining holes
-    idx_start = 0
+    shell = []  # outer points defining the polygon's outer shell
+    holes = []  # inner points defining holes
 
     if elt_type == "path":  # build polygons from custom paths
         path_data = parse_path(instructions["path"])
-        subpaths  = [subpath for subpath in
-                     _get_closed_subpaths(path_data)]
-        points    = [_get_points(subpath) for subpath in subpaths]
+        subpaths = [
+            subpath for subpath in _get_closed_subpaths(path_data)
+        ]
+        points = [_get_points(subpath) for subpath in subpaths]
 
         # get the container
         idx_container = _get_outer_shell(points)
-        shell         = np.array(points[idx_container])
+        shell = np.array(points[idx_container])
 
         # get the holes and make the shape
-        holes     = [pp for i, pp in enumerate(points) if i!= idx_container]
+        holes = [pp for i, pp in enumerate(points) if i != idx_container]
         container = Polygon(shell, holes=holes)
     elif elt_type == "ellipse":  # build ellipses
         circle = Point((instructions["cx"], instructions["cy"])).buffer(1)
@@ -239,7 +233,7 @@ def _make_polygon(elt_type, instructions, parent=None, interpolate_curve=50,
 
     # y axis is inverted in SVG, so make mirror transform
     container = affine_transform(container, (1, 0, 0, -1, 0, 0))
-    shell     = np.array(container.exterior.coords)
+    shell = np.array(container.exterior.coords)
 
     if return_points:
         return container, shell
@@ -254,18 +248,18 @@ def _get_transform(obj, tdict):
             trans = obj.getAttribute('transform')
             if trans.startswith("translate"):
                 start = trans.find("(") + 1
-                stop  = trans.find(")")
+                stop = trans.find(")")
                 tdict["transf"].append("translate")
                 tdict["transfdata"].append(
                     [float(f) for f in trans[start:stop].split(",")])
             elif trans.startswith("matrix"):
                 start = trans.find("(") + 1
-                stop  = trans.find(")")
+                stop = trans.find(")")
                 trans = [float(f)
                          for f in trans[start:stop].split(",")]
                 tdict["transf"].append("matrix")
                 tdict["transfdata"].append(trans)
             else:
                 raise RuntimeError("Uknown transform: " + trans)
-    except:
+    except Exception:
         pass
