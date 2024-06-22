@@ -71,7 +71,7 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         from shapely.geometry import (
             MultiPolygon, Polygon, LineString, MultiLineString)
     except ImportError:
-        pass
+        Polygon = BackupShape
 
     import matplotlib.pyplot as plt
 
@@ -84,7 +84,9 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         del kwargs["zorder"]
 
     # plot the main shape
-    if isinstance(shape, (Polygon, BackupShape)) and shape.exterior.coords:
+    is_polygon = isinstance(shape, (Polygon, BackupShape))
+
+    if is_polygon and len(shape.exterior.coords):
         if show_contour:
             _plot_coords(axis, shape.exterior, m, mc, ec)
             for path in shape.interiors:
@@ -94,7 +96,7 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
         axis.add_patch(patch)
 
         # take care of the areas
-        if hasattr(shape, "areas"):
+        try:
             def_area = shape.areas["default_area"]
 
             # get the highest and lowest properties
@@ -135,6 +137,8 @@ def plot_shape(shape, axis=None, m='', mc="#999999", fc="#8888ff",
                         **kwargs)
 
                     axis.add_patch(patch)
+        except NotImplementedError:
+            pass
     elif isinstance(shape, MultiPolygon):
         for p in shape.geoms:
             plot_shape(p, axis=axis, m=m, mc=mc, fc=fc, ec=ec, alpha=alpha,
