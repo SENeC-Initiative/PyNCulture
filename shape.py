@@ -29,8 +29,6 @@ from typing import Any, ClassVar, Dict
 import weakref
 import logging
 
-logger = logging.getLogger(__name__)
-
 from shapely.wkt import loads
 from shapely.affinity import scale, translate
 from shapely.geometry import Point, Polygon, MultiPolygon
@@ -39,7 +37,12 @@ import numpy as np
 from numpy.random import uniform
 
 from .geom_utils import conversion_magnitude
+from .pync_log import _log_message
 from .tools import indexable, _insert_area
+
+
+logger = logging.getLogger(__name__)
+
 
 # unit support
 
@@ -997,10 +1000,11 @@ class Shape(Polygon):
 
                 positions = rnd_pts_in_tr(triangles, neurons)
             else:
-                logger.warning("Random point generation can be very slow "
-                               "without advanced triangulation methods. "
-                               "Please install PyOpenGL for faster seeding "
-                               "inside complex shapes.")
+                _log_message(logger, "WARNING",
+                             "Random point generation can be very slow "
+                             "without advanced triangulation methods. "
+                             "Please install PyOpenGL for faster seeding "
+                             "inside complex shapes.")
 
                 points = []
 

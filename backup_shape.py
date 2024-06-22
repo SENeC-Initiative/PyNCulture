@@ -79,7 +79,7 @@ class BackupShape:
 
     @classmethod
     def rectangle(cls, height, width, centroid=(0., 0.), unit='um',
-                  parent=None):
+                  parent=None, **kwargs):
         r'''
         Generate a rectangle of given height, width and center of mass.
 
@@ -134,7 +134,7 @@ class BackupShape:
 
     @classmethod
     def disk(cls, radius, centroid=(0., 0.), unit='um', parent=None,
-             interpolate=50):
+             interpolate=50, **kwargs):
         r'''
         Generate a disk of given radius and center (`centroid`).
 
@@ -187,7 +187,7 @@ class BackupShape:
 
     @classmethod
     def ellipse(cls, radii, centroid=(0., 0.), unit='um', parent=None,
-                interpolate=50):
+                interpolate=50, **kwargs):
         r'''
         Generate a disk of given radius and center (`centroid`).
 
@@ -238,7 +238,7 @@ class BackupShape:
         ellipse.radii = radii
         return ellipse
 
-    def __init__(self, unit='um', parent=None):
+    def __init__(self, unit='um', parent=None, **kwargs):
         self._parent = weakref.proxy(parent) if parent is not None else None
         self.exterior = _Path(self)
         self.interiors = []
