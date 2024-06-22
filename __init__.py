@@ -60,6 +60,8 @@ Content
 
 import logging
 
+from .pync_log import _log_message
+
 # shapely support
 
 try:
@@ -80,19 +82,15 @@ __version__ = "0.10.0"
 # Define I/O functions #
 # -------------------- #
 
-def culture_from_file(*args, **kwargs):
-    raise RuntimeError("This function requires 'shapely' to work.")
-
-
-def shapes_from_file(*args, **kwargs):
-    raise RuntimeError("This function requires 'shapely' to work.")
-
-
 if _shapely_support:
-    from .shape_io import culture_from_file as _cff
-    from .shape_io import shapes_from_file as _sff
-    culture_from_file = _cff
-    shapes_from_file = _sff
+    from .shape_io import culture_from_file
+    from .shape_io import shapes_from_file
+else:
+    def culture_from_file(*args, **kwargs):
+        raise RuntimeError("This function requires 'shapely' to work.")
+
+    def shapes_from_file(*args, **kwargs):
+        raise RuntimeError("This function requires 'shapely' to work.")
 
 
 __all__ = [
@@ -105,7 +103,6 @@ __all__ = [
 # ------------------------------------------ #
 
 _logger = logging.getLogger(__name__)
-from .pync_log import _log_message
 
 
 try:
